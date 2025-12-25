@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Scratch 魔法實驗室 (V16 友善語氣版)</title>
+    <title>Scratch 實驗室</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -136,14 +136,14 @@
                 Loading...
             </div>
             <div class="empathy-actions">
-                <button class="btn-comfort btn-warm" onclick="handoverToTA()">📸 請魔法導師幫我看積木</button>
+                <button class="btn-comfort btn-warm" onclick="handoverToTA()">📸 請幫我看積木</button>
                 <button class="btn-comfort btn-close" onclick="closeEmpathy()">沒事，我再試試看</button>
             </div>
         </div>
     </div>
 
     <div class="sidebar">
-        <h3 style="margin:0 0 10px 0; color:#444;">🧩 Scratch 魔法實驗室</h3>
+        <h3 style="margin:0 0 10px 0; color:#444;">🧩 Scratch 實驗室</h3>
         
         <div class="task-card">
             <strong>🚀 今天的挑戰：跳跳貓</strong><br>
@@ -173,7 +173,7 @@
         </div>
 
         <div style="font-size:0.85em; color:#888; margin-top:auto; line-height:1.5;">
-            * 右下角：<strong>魔法導師</strong> (解題)<br>
+            * 右下角：<strong>積木大師</strong> (解題)<br>
             * 壓力大時：<strong>暖心夥伴</strong> (關心)
         </div>
     </div>
@@ -183,10 +183,10 @@
         
         <div class="ta-panel">
             <div class="ta-header">
-                <span>🧙‍♂️ 魔法導師 (AI 助教)</span>
+                <span>🧙‍♂️ 積木大師</span>
             </div>
             <div class="ta-chat-box" id="ta-chat">
-                <div class="msg ai">嗨！我是魔法導師。寫程式遇到問題很正常，你可以打字問我，或是按相機讓我看看你的程式喔！</div>
+                <div class="msg ai">嗨！我是積木大師。寫程式遇到問題很正常，你可以打字問我，或是按相機讓我看看你的程式，我可以幫忙你喔！</div>
             </div>
             <div class="ta-input-row">
                 <button class="btn-icon" title="截圖給導師看" onclick="captureAndAnalyze('TA_NORMAL')">📸</button>
@@ -349,7 +349,7 @@
                 content = "感覺你現在壓力有點大。<br>我們先休息一下，喝口水，等一下再繼續挑戰！";
             }
 
-            content += "<br><br>如果你需要幫忙，可以請 **魔法導師** 幫你看看程式哪裡有問題喔！";
+            content += "<br><br>如果你需要幫忙，可以請 **積木大師** 幫你看看程式哪裡有問題喔！";
             msgEl.innerHTML = content;
 
             document.getElementById('empathy-modal').style.display = 'flex';
@@ -363,7 +363,7 @@
         function handoverToTA() {
             document.getElementById('empathy-modal').style.display = 'none';
             const taBox = document.getElementById('ta-chat');
-            taBox.innerHTML += `<div class="msg system">✨ 暖心夥伴已通知魔法導師...</div>`;
+            taBox.innerHTML += `<div class="msg system">✨ 暖心夥伴已通知積木大師...</div>`;
             
             captureAndAnalyze('TA_STRESSED_' + state.dominantStressor);
             
@@ -417,7 +417,7 @@
             const taBox = document.getElementById('ta-chat');
             
             // ★ AI 人設：友善、鼓勵、不說教 ★
-            const prompt = `你是 Scratch 魔法導師。對象是小學高年級。學生問：${userText}。請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。不要用疊字。`;
+            const prompt = `你是 Scratch 積木大師。對象是小學高年級。學生問：${userText}。請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。不要用疊字。`;
 
             try {
                 const res = await fetch(url, {
@@ -430,7 +430,7 @@
                 taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } catch(e) {
-                taBox.innerHTML += `<div class="msg ai">魔法連線中斷了...請檢查網路。</div>`;
+                taBox.innerHTML += `<div class="msg ai">連線中斷了...請檢查網路。</div>`;
             }
         }
 
@@ -449,14 +449,14 @@
                 if(reason === 'FACE') context = "學生的表情看起來很困擾。";
                 
                 systemPrompt = `
-                你是 Scratch 魔法導師。對象是小學高年級。
+                你是 Scratch 積木大師。對象是小學高年級。
                 **${context} 暖心夥伴已經安撫過他了。**
                 請用"非常溫柔、有耐心"的語氣。不要用疊字。
                 請看截圖(忽略左右側，專注中間積木區)，檢查跳跳貓任務(空白鍵->Y+100->等待->Y-100)是否有錯？
                 給出一個明確的提示即可，字數不用多。
                 `;
             } else {
-                systemPrompt = `你是 Scratch 魔法導師。對象是小學高年級。請看截圖(專注中間積木區)，檢查程式邏輯是否符合跳跳貓任務。請用簡單清楚的中文指出問題，並給予鼓勵。`;
+                systemPrompt = `你是 Scratch 積木大師。對象是小學高年級。請看截圖(專注中間積木區)，檢查程式邏輯是否符合跳跳貓任務。請用簡單清楚的中文指出問題，並給予鼓勵。`;
             }
 
             try {
@@ -477,7 +477,7 @@
                 taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } catch(e) {
-                taBox.innerHTML += `<div class="msg ai">魔法連線失敗。</div>`;
+                taBox.innerHTML += `<div class="msg ai">連線失敗。</div>`;
             }
         }
     </script>
