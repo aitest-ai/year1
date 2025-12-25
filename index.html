@@ -2,124 +2,175 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Scratch 實驗室 (卷軸任務版)</title>
+    <title>Scratch 實驗室 (卷軸特效版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
-        /* 配色保持活潑 */
+        /* ========================
+           全域變數與基礎設定
+           ======================== */
         :root { 
-            --primary: #4C97FF; --accent: #FFAB19; --danger: #FF6B6B;  
-            --bg: #F7F9FC; --chat-bg: #ffffff;
+            --primary: #4C97FF; 
+            --accent: #FFAB19; 
+            --danger: #FF6B6B;  
+            --bg: #F7F9FC; 
+            --wood: #8D6E63; /* 卷軸桿顏色 */
+            --paper: #FFF8E1; /* 卷軸紙顏色 */
         }
-        body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif; background: var(--bg); overflow: hidden; }
+        body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); overflow: hidden; }
 
         /* ========================
-           新增：任務卷軸動畫樣式
+           1. 擬真卷軸動畫系統
            ======================== */
         .mission-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.7); z-index: 99999;
+            background: rgba(0,0,0,0.6); z-index: 9999;
             display: flex; justify-content: center; align-items: center;
-            transition: all 1s ease-in-out;
-            pointer-events: none; /* 縮小後讓點擊穿透 */
+            transition: background 0.8s ease 4.5s, width 0s ease 5.5s, height 0s ease 5.5s; /* 延遲背景消失 */
+            pointer-events: none; /* 預設不擋滑鼠，展開時由 scroll-container 擋 */
         }
 
-        .scroll-paper {
-            background: #FFF8E1; /* 羊皮紙色 */
-            width: 0px; height: 10px; /* 初始關閉 */
-            border: 5px solid #FFB300; /* 金邊 */
-            border-radius: 15px;
-            box-shadow: 0 0 50px rgba(255, 179, 0, 0.6);
+        .scroll-container {
+            position: relative;
+            width: 0px; /* 初始寬度 */
+            display: flex; flex-direction: column; align-items: center;
+            transition: all 1s cubic-bezier(0.25, 1, 0.5, 1); /* 平滑移動 */
+            pointer-events: auto;
+        }
+
+        /* 卷軸桿子 (上下兩根) */
+        .scroll-handle {
+            width: 100%; height: 20px; 
+            background: linear-gradient(to right, #5D4037, var(--wood), #5D4037);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: relative; z-index: 2;
+            transition: width 1s ease;
+        }
+        /* 裝飾桿頭 */
+        .scroll-handle::before, .scroll-handle::after {
+            content: ''; position: absolute; top: -2px; width: 24px; height: 24px;
+            background: #FFD54F; border-radius: 50%; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.3);
+        }
+        .scroll-handle::before { left: -10px; }
+        .scroll-handle::after { right: -10px; }
+
+        /* 卷軸紙張內容 */
+        .scroll-body {
+            background: var(--paper);
+            width: 90%; /* 比桿子稍微窄一點 */
+            height: 0px; /* 初始高度為 0 (捲起來) */
             overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: height 1.5s ease-in-out, width 1s ease;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             text-align: center;
-            transition: all 1s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 彈跳效果 */
-            position: absolute;
+            border-left: 1px solid #ddd; border-right: 1px solid #ddd;
         }
 
-        /* 展開狀態 */
-        .scroll-paper.open {
-            width: 600px; height: 400px;
-            opacity: 1; pointer-events: auto;
-        }
+        /* === 動畫狀態：展開 (Open) === */
+        .scroll-container.open { width: 600px; }
+        .scroll-container.open .scroll-body { height: 400px; }
 
-        /* 縮小收回左上角狀態 */
-        .scroll-paper.minimized {
-            width: 280px; height: 140px;
-            top: 20px; left: 20px; /* 對齊左側 Sidebar 位置 */
-            transform: translate(0, 0) scale(1);
-            border-width: 3px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            z-index: 50; /* 蓋在 Sidebar 之上 */
-            align-items: flex-start; padding: 15px;
-            text-align: left;
+        /* === 動畫狀態：收起並定位到左上 (Minimized) === */
+        /* 這邊利用 fixed positioning override */
+        .scroll-container.minimized {
+            position: fixed;
+            top: 15px; left: 15px; /* 對齊 Sidebar */
+            width: 290px; /* Sidebar 寬度減去 padding */
+            transform: none !important; /* 移除置中偏移 */
+            z-index: 50;
+        }
+        .scroll-container.minimized .scroll-body {
+            height: 160px; /* 縮小後的高度 */
+            width: 92%;
+            align-items: flex-start; 
+            padding: 10px 15px;
+            box-sizing: border-box;
             background: #FFFDE7;
+            border: 2px solid #FFD54F;
         }
+        .scroll-container.minimized .scroll-handle { height: 12px; } /* 桿子變細 */
+        .scroll-container.minimized .scroll-handle::before, 
+        .scroll-container.minimized .scroll-handle::after { width: 16px; height: 16px; top: -2px; }
 
-        .scroll-content { opacity: 0; transition: opacity 0.5s 0.5s; width: 90%; }
-        .scroll-paper.open .scroll-content { opacity: 1; }
-        .scroll-paper.minimized .scroll-content { opacity: 1; font-size: 0.85em; }
+        /* 內容樣式 */
+        .scroll-content { opacity: 0; transition: opacity 0.5s 1s; width: 100%; }
+        .scroll-container.open .scroll-content { opacity: 1; }
+        .scroll-container.minimized .scroll-content { opacity: 1; text-align: left; }
 
-        .scroll-title { font-size: 2em; color: #E65100; margin-bottom: 20px; font-weight: bold; }
-        .scroll-paper.minimized .scroll-title { font-size: 1.1em; margin-bottom: 5px; display: flex; align-items: center; gap:5px;}
+        .scroll-title { font-size: 2.2em; color: #E65100; margin: 0 0 20px 0; font-weight: bold; }
+        .scroll-container.minimized .scroll-title { font-size: 1.1em; margin-bottom: 5px; display: flex; align-items: center; gap:5px;}
         
-        .scroll-list { list-style: none; padding: 0; font-size: 1.2em; color: #5D4037; line-height: 1.8; text-align: left; display: inline-block; }
-        .scroll-paper.minimized .scroll-list { font-size: 0.9em; line-height: 1.4; }
+        .scroll-list { list-style: none; padding: 0; font-size: 1.3em; color: #5D4037; line-height: 2; text-align: left; display: inline-block; }
+        .scroll-container.minimized .scroll-list { font-size: 0.9em; line-height: 1.4; display: block; }
+        .scroll-container.minimized .scroll-list li { margin-bottom: 4px; }
 
-        /* 左側面板 */
+
+        /* ========================
+           2. 左側面板 (Sidebar)
+           ======================== */
         .sidebar { 
             width: 320px; background: white; padding: 15px; 
             display: flex; flex-direction: column; border-right: 2px solid #E0E0E0; 
             z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.05);
-            padding-top: 170px; /* 預留空間給縮小的卷軸 */
+            /* ★ 重點：預留上方空間給飛回來的卷軸 */
+            padding-top: 210px; 
+            position: relative;
         }
-        
-        /* 舊的 task-card 隱藏，改用卷軸顯示 */
-        .task-card { display: none; } 
 
         .cam-wrapper {
             position: relative; width: 100%; height: 180px; 
             background: #000; border-radius: 12px; overflow: hidden; 
             border: 3px solid #FFD54F; margin-bottom: 10px; 
-            display: flex; justify-content: center; align-items: center;
+            display: flex; justify-content: center; align-items: center; flex-shrink: 0;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        
         .cam-placeholder { position: absolute; text-align: center; color: #fff; display: none; width: 100%; z-index: 5; }
         .retry-btn { background: var(--primary); border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; color: white; }
-
         .face-overlay {
             position: absolute; bottom: 0; left: 0; width: 100%;
             background: rgba(0,0,0,0.7); color: white; padding: 8px;
             text-align: center; font-size: 0.9em; border-radius: 0 0 10px 10px;
         }
 
-        /* 儀表板 */
         .monitor-panel {
             background: #fff; border: 2px solid #eee; border-radius: 15px;
-            padding: 15px; margin-bottom: 10px;
+            padding: 15px; margin-bottom: 10px; flex-shrink: 0;
         }
         .metric-row { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px; color: #555; }
         .high-stress { color: var(--danger); font-weight: bold; }
         .stress-bar-bg { height: 12px; background: #eee; border-radius: 10px; overflow: hidden; margin-top: 8px; }
         .stress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.5s, background 0.5s; border-radius: 10px; }
 
-        /* 右側主畫面 */
-        .main-area { flex: 1; position: relative; display: flex; flex-direction: column; }
+        /* ========================
+           3. 右側主畫面與 TA 面板 (固定大小修正)
+           ======================== */
+        .main-area { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
         .scratch-frame { flex: 1; width: 100%; border: none; }
 
-        /* TA 面板 */
+        /* ★ 重點修正：固定高度的 TA 面板，內部捲動 ★ */
         .ta-panel {
-            height: 300px; background: white; border-top: 2px solid #E0E0E0;
+            height: 350px; /* 固定高度，不隨內容變大 */
+            background: white; border-top: 2px solid #E0E0E0;
             display: flex; flex-direction: column; padding: 15px;
             box-shadow: 0 -4px 15px rgba(0,0,0,0.05); z-index: 20;
+            flex-shrink: 0; /* 禁止被壓縮 */
+            box-sizing: border-box;
         }
-        .ta-header { font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 1.1em; }
-        .ta-chat-box { flex: 1; overflow-y: auto; background: #FAFAFA; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-size: 0.95em; margin-bottom: 10px; }
+        .ta-header { font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 1.1em; flex-shrink: 0; }
         
-        .ta-input-row { display: flex; gap: 10px; align-items: center; }
+        .ta-chat-box { 
+            flex: 1; /* 佔滿剩餘空間 */
+            overflow-y: auto; /* 內容過多時顯示捲軸 */
+            background: #FAFAFA; padding: 15px; border-radius: 12px; border: 2px solid #eee; 
+            font-size: 0.95em; margin-bottom: 10px; 
+            min-height: 0; /* Firefox/Flexbox 重要修正，防止溢出 */
+        }
+        
+        .ta-input-row { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
         .ta-input { flex: 1; padding: 10px 15px; border: 2px solid #ddd; border-radius: 25px; outline: none; height: 40px; box-sizing: border-box; font-size: 1em; }
         .ta-input:focus { border-color: var(--primary); }
         .btn-icon { background: #F0F0F0; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 1.4em; flex-shrink: 0; transition: 0.2s; }
@@ -133,8 +184,8 @@
         .msg.system { background: #FFF3E0; color: #E65100; text-align: center; font-size: 0.9em; border: 1px solid #FFE0B2; align-self: center; width: 90%; border-radius: 10px; }
 
         /* ========================
-            暖心 AI 彈窗 (聊天版)
-            ======================== */
+           4. 暖心 AI 彈窗
+           ======================== */
         .empathy-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.85); 
@@ -151,28 +202,12 @@
 
         .empathy-header { background: #FFF8E1; padding: 20px; display: flex; align-items: center; gap: 15px; border-bottom: 2px solid #FFE0B2; flex-shrink: 0; }
         .avatar-heart { font-size: 3em; } 
-        
-        /* 聊天記錄區 */
-        .empathy-chat-area { 
-            padding: 20px; flex: 1; overflow-y: auto; background: #fff; 
-            display: flex; flex-direction: column; gap: 10px;
-        }
+        .empathy-chat-area { padding: 20px; flex: 1; overflow-y: auto; background: #fff; display: flex; flex-direction: column; gap: 10px; }
         .msg.warm { background: #FFF3E0; color: #E65100; align-self: flex-start; border-radius: 15px 15px 15px 2px; }
-        
-        /* 底部輸入區 */
-        .empathy-input-area { 
-            padding: 15px; background: #FFFDE7; border-top: 2px solid #FFE0B2; 
-            display: flex; gap: 10px; align-items: center; flex-shrink: 0;
-        }
+        .empathy-input-area { padding: 15px; background: #FFFDE7; border-top: 2px solid #FFE0B2; display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
         .emp-input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #FFCC80; outline: none; }
-        
         .empathy-actions { padding: 15px; background: #fff; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; align-items: center; }
-        .btn-handoff { 
-            background: linear-gradient(135deg, #FFAB00, #FF6F00); color: white; 
-            padding: 12px 30px; border-radius: 30px; border: none; cursor: pointer; 
-            font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 10px rgba(255, 111, 0, 0.3);
-            width: 80%; transition: 0.2s;
-        }
+        .btn-handoff { background: linear-gradient(135deg, #FFAB00, #FF6F00); color: white; padding: 12px 30px; border-radius: 30px; border: none; cursor: pointer; font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 10px rgba(255, 111, 0, 0.3); width: 80%; transition: 0.2s; }
         .btn-handoff:hover { transform: scale(1.02); }
         .btn-close { background: transparent; color: #888; border: none; cursor: pointer; font-size: 0.9em; text-decoration: underline; }
 
@@ -182,16 +217,20 @@
 <body>
 
     <div id="mission-overlay" class="mission-overlay">
-        <div id="scroll-paper" class="scroll-paper">
-            <div class="scroll-content">
-                <div class="scroll-title">📜 今天的挑戰：跳跳貓</div>
-                <ul class="scroll-list">
-                    <li>1. 按下空白鍵</li>
-                    <li>2. 往上跳 (Y + 100)</li>
-                    <li>3. 等待一下 (0.5 秒)</li>
-                    <li>4. 掉下來 (Y - 100)</li>
-                </ul>
+        <div id="scroll-container" class="scroll-container">
+            <div class="scroll-handle top"></div>
+            <div class="scroll-body">
+                <div class="scroll-content">
+                    <div class="scroll-title">📜 今天的挑戰：跳跳貓</div>
+                    <ul class="scroll-list">
+                        <li>1. 按下空白鍵</li>
+                        <li>2. 往上跳 (Y + 100)</li>
+                        <li>3. 等待一下 (0.5 秒)</li>
+                        <li>4. 掉下來 (Y - 100)</li>
+                    </ul>
+                </div>
             </div>
+            <div class="scroll-handle bottom"></div>
         </div>
     </div>
 
@@ -221,8 +260,6 @@
     </div>
 
     <div class="sidebar">
-        <h3 style="margin:0 0 10px 0; color:#444;">🧩 Scratch 實驗室</h3>
-
         <div class="cam-wrapper">
             <video id="video" autoplay muted playsinline></video>
             <div id="cam-error" class="cam-placeholder">
@@ -272,7 +309,6 @@
     <script>
         const API_KEY = "AIzaSyDnVdlB1rjVqZ8HZcKhfmm-yv5Qafv0bCk"; // ★★★ 請務必填入您的 API Key ★★★
         
-        // ★★★ 修正提示詞：強制 AI 逐步教學，一次只講一點 ★★★
         const TA_SYSTEM_PROMPT = `
         你是 Scratch 積木大師。對象是小學高年級。
         **核心規則：**
@@ -293,32 +329,31 @@
         };
 
         // ==========================================
-        // 0. 開場動畫邏輯
+        // 0. 開場動畫邏輯 (優化版)
         // ==========================================
         window.onload = function() {
-            const scroll = document.getElementById('scroll-paper');
+            const scroll = document.getElementById('scroll-container');
             const overlay = document.getElementById('mission-overlay');
             
             // 1. 展開卷軸
             setTimeout(() => {
                 scroll.classList.add('open');
-            }, 500);
+            }, 300);
 
-            // 2. 啟動系統 (在背景進行)
+            // 2. 啟動系統 (背景)
             initSystem();
 
-            // 3. 停留 5 秒後收起
+            // 3. 5秒後收起並飛往左上角
             setTimeout(() => {
-                // 移除遮罩背景
+                // 移除遮罩
                 overlay.style.background = 'rgba(0,0,0,0)';
-                overlay.style.width = '0'; // 避免擋住畫面點擊
-                overlay.style.height = '0';
+                overlay.style.pointerEvents = 'none'; // 讓滑鼠穿透
                 
                 // 卷軸變形飛往左上角
                 scroll.classList.remove('open');
                 scroll.classList.add('minimized');
                 
-            }, 5500); // 0.5s 展開 + 5s 閱讀
+            }, 5500); 
         };
 
         // ==========================================
