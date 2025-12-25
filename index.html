@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Scratch 實驗室</title>
+    <title>Scratch 實驗室 (記憶升級版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -220,11 +220,12 @@
             isInterventionActive: false,
             clickCount: 0, keyPressCount: 0, mousePositions: [],
             dominantStressor: '',
-            empathyChatHistory: [] // 記錄暖心對話歷史
+            empathyChatHistory: [], // 暖心對話歷史
+            taChatHistory: []       // ★★★ 新增：積木大師對話歷史 (含圖片) ★★★
         };
 
         // ==========================================
-        // 1. 行為偵測
+        // 1. 行為偵測 (維持不變)
         // ==========================================
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
@@ -292,9 +293,6 @@
             }
         }
 
-        // ==========================================
-        // 3. 綜合壓力監測
-        // ==========================================
         function startStressLoop() {
             const video = document.getElementById('video');
             const emoVal = document.getElementById('emo-val');
@@ -341,18 +339,16 @@
         }
 
         // ==========================================
-        // 4. 暖心 AI 深度對話邏輯 (升級版)
+        // 4. 暖心 AI 深度對話邏輯
         // ==========================================
-        
         function triggerEmpathyAI(reason) {
             state.isInterventionActive = true;
             state.faceScore = 50; state.mouseScore = 0; state.keyScore = 0;
-            state.empathyChatHistory = []; // 重置對話歷史
+            state.empathyChatHistory = [];
             
             const chatBox = document.getElementById('empathy-chat');
-            chatBox.innerHTML = ''; // 清空畫面
+            chatBox.innerHTML = ''; 
 
-            // 生成第一句開場白
             let openingMsg = "";
             if (reason === 'FACE') openingMsg = "你看起來有點困擾，是不是程式卡關了？";
             else if (reason === 'MOUSE') openingMsg = "我發現你的滑鼠移動得有點急，是不是心裡有點著急？";
@@ -373,7 +369,6 @@
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
             
-            // 記錄對話歷史
             state.empathyChatHistory.push({
                 role: type === 'warm' ? 'model' : 'user',
                 parts: [{ text: text }]
@@ -388,7 +383,6 @@
             addEmpathyMsg('user', val);
             input.value = "";
 
-            // 呼叫 Gemini (暖心模式)
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const prompt = `
             你是一個「暖心夥伴」。使用者是小學高年級學生，目前學習程式遇到挫折，壓力很大。
@@ -398,7 +392,6 @@
             3. **目標**：引導他冷靜下來，最後鼓勵他「如果準備好了，可以按下面的按鈕請積木大師幫忙」。
             `;
 
-            // 將 prompt 加在對話歷史最前面發送 (為了省 token 這裡簡化處理，實際建議用 system instruction)
             const payload = {
                 contents: [
                     { role: 'user', parts: [{ text: prompt }] },
@@ -428,137 +421,164 @@
             document.getElementById('empathy-modal').style.display = 'none';
             const taBox = document.getElementById('ta-chat');
             taBox.innerHTML += `<div class="msg system">✨ 暖心夥伴已通知積木大師...</div>`;
-            
-            // 進行截圖交接
             captureAndAnalyze('TA_STRESSED_' + state.dominantStressor);
-            
             setTimeout(() => { state.isInterventionActive = false; }, 5000);
         }
 
-        // --- TA 聊天與截圖 ---
+        // ==========================================
+        // ★★★ 核心修改：整合對話與截圖 (記憶+連線修正) ★★★
+        // ==========================================
+
+        // 統一的 Gemini 呼叫函式 (負責發送 state.taChatHistory)
+        async function sendToGeminiTA() {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const taBox = document.getElementById('ta-chat');
+
+            // 系統提示詞 (永遠放在對話最前面，或每次發送時加入)
+            // 為了讓 API 記得圖片，我們將整個 taChatHistory 送出去
+            
+            // 為了確保角色設定，我們在每次發送時，把 history 包裝一下
+            // 注意：API 限制第一個訊息必須是 user，所以我們把 system prompt 融合在第一個 user 訊息，或是使用 system_instruction (v1beta)
+            // 這裡採用簡單策略：在 history 為空時，插入一個隱藏的 user 提示詞
+            
+            if (state.taChatHistory.length === 0) {
+                 // 這是初始化，不應該發生，因為使用者會先傳文字或圖片
+            }
+
+            // 準備 Prompt 頭部 (System Prompt)
+            const systemInstruction = `
+            你是 Scratch 積木大師。對象是小學高年級。
+            請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。
+            注意：如果使用者傳送了圖片，那是 Scratch 畫面的「放大裁切」截圖，請專注於檢查程式邏輯是否符合跳跳貓任務(空白鍵->Y+100->等待->Y-100)。
+            `;
+
+            // 構建 Payload
+            // 我們把 System Instruction 作為一次性的 user message 放在最前面 (One-shot 設定)，但為了保持對話流暢，
+            // 較好的做法是每次請求都帶上這個 context，或者依賴 Gemini 的長窗口。
+            // 這裡我們把 System Instruction 加在本次請求的 payload 結構中 (透過 system_instruction 參數，如果模型支援)，
+            // 或者簡單地，我們假設 taChatHistory 的第一則已經包含了上下文。
+            
+            // 為了簡化，我們在送出時，臨時在陣列最前面加一個 Role Definition
+            const fullHistory = [
+                { role: 'user', parts: [{ text: systemInstruction }] },
+                ...state.taChatHistory
+            ];
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: fullHistory })
+                });
+                const data = await res.json();
+                
+                if(data.error) throw new Error(data.error.message);
+
+                const reply = data.candidates[0].content.parts[0].text;
+                
+                // 顯示回應
+                taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
+                taBox.scrollTop = taBox.scrollHeight;
+
+                // ★★★ 記憶：把 AI 的回應存入歷史 ★★★
+                state.taChatHistory.push({
+                    role: 'model',
+                    parts: [{ text: reply }]
+                });
+
+            } catch(e) {
+                console.error(e);
+                taBox.innerHTML += `<div class="msg ai">連線發生錯誤，請稍後再試。</div>`;
+            }
+        }
+
+        // --- 傳送文字 (Text) ---
         async function sendTextChat() {
             const input = document.getElementById('ta-input');
             const val = input.value.trim();
             if(!val) return;
+            
             const taBox = document.getElementById('ta-chat');
             taBox.innerHTML += `<div class="msg user">${val}</div>`;
             taBox.scrollTop = taBox.scrollHeight;
             input.value = "";
-            await callGeminiText(val);
+
+            // ★★★ 記憶：把使用者的文字存入歷史 ★★★
+            state.taChatHistory.push({
+                role: 'user',
+                parts: [{ text: val }]
+            });
+
+            await sendToGeminiTA();
         }
 
+        // --- 傳送截圖 (Vision) ---
         async function captureAndAnalyze(mode) {
             const taBox = document.getElementById('ta-chat');
             if(mode.includes('TA')) {
                 taBox.innerHTML += `<div class="msg user">📸 傳送截圖中...</div>`;
             }
 
+            let stream = null; // 定義在外部以便 finally 清理
+
             try {
-                const stream = await navigator.mediaDevices.getDisplayMedia({
+                stream = await navigator.mediaDevices.getDisplayMedia({
                     video: { cursor: "never" }, audio: false, preferCurrentTab: true
                 });
+                
                 const videoEl = document.getElementById('capture-video');
                 videoEl.srcObject = stream;
+                
                 await new Promise(r => videoEl.onloadedmetadata = r);
                 videoEl.play();
+                
+                // 等待畫面穩定
                 await new Promise(r => setTimeout(r, 500)); 
 
-                // ★★★ 修正這裡：透過 drawImage 參數進行畫面裁切 (Crop) ★★★
+                // --- 裁切邏輯 ---
                 const canvas = document.getElementById('capture-canvas');
-                
                 const w = videoEl.videoWidth;
                 const h = videoEl.videoHeight;
-                
-                // 定義裁切範圍 (針對 Scratch 3.0 介面配置)
-                // 假設：左側工具列約佔 20%，頂部選單佔 10%
-                // 目標：擷取「中間偏左」的積木工作區
-                const cropX = w * 0.20; // 略過左邊工具列
-                const cropY = h * 0.10; // 略過頂部選單
-                const cropW = w * 0.45; // 擷取中間 45% 寬度 (工作區)
-                const cropH = h * 0.80; // 擷取中間 80% 高度
-                
+                const cropX = w * 0.20; 
+                const cropY = h * 0.10; 
+                const cropW = w * 0.45; 
+                const cropH = h * 0.80; 
                 canvas.width = cropW;
                 canvas.height = cropH;
-                
-                // 參數：來源, sx, sy, sw, sh, dx, dy, dw, dh
                 canvas.getContext('2d').drawImage(videoEl, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
                 
-                stream.getTracks().forEach(t => t.stop()); 
                 const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                const cleanBase64 = base64.split(',')[1];
 
-                await callGeminiVision(mode, base64);
+                // 準備提示詞
+                let userPrompt = "這是我目前的程式積木，請幫我檢查。";
+                if (mode.startsWith('TA_STRESSED')) {
+                    const reason = mode.split('_')[2]; 
+                    userPrompt = `(暖心模式啟動：學生剛剛因為 ${reason} 感到挫折) 請溫柔地幫我看看這張截圖裡的程式積木哪裡有問題？`;
+                }
+
+                // ★★★ 記憶：把「圖片 + 文字」存入歷史 ★★★
+                // Gemini API 支援在一個 user part 中同時放 text 和 inline_data
+                state.taChatHistory.push({
+                    role: 'user',
+                    parts: [
+                        { text: userPrompt },
+                        { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
+                    ]
+                });
+
+                // 發送
+                await sendToGeminiTA();
 
             } catch(e) {
                 console.error(e);
                 if(mode.includes('TA')) taBox.innerHTML += `<div class="msg ai">⚠️ 截圖失敗，請記得按「分享」喔。</div>`;
-            }
-        }
-
-        // --- Gemini API (Text - TA) ---
-        async function callGeminiText(userText) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-            const taBox = document.getElementById('ta-chat');
-            
-            const prompt = `你是 Scratch 積木大師。對象是小學高年級。學生問：${userText}。請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。`;
-
-            try {
-                const res = await fetch(url, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                const reply = data.candidates[0].content.parts[0].text;
-                taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
-                taBox.scrollTop = taBox.scrollHeight;
-            } catch(e) {
-                taBox.innerHTML += `<div class="msg ai">連線中斷了...</div>`;
-            }
-        }
-
-        // --- Gemini API (Vision - TA) ---
-        async function callGeminiVision(mode, image64) {
-            const cleanBase64 = image64.split(',')[1];
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-            const taBox = document.getElementById('ta-chat');
-
-            let systemPrompt = "";
-            if (mode.startsWith('TA_STRESSED')) {
-                const reason = mode.split('_')[2]; 
-                let context = "";
-                if(reason === 'MOUSE') context = "學生剛剛因為滑鼠操作太急而感到挫折。";
-                if(reason === 'KEY') context = "學生剛剛因為鍵盤敲擊太快而感到焦慮。";
-                if(reason === 'FACE') context = "學生的表情看起來很困擾。";
-                
-                systemPrompt = `
-                你是 Scratch 積木大師。對象是小學高年級。
-                **${context} 暖心夥伴已經陪他聊過天，他心情好多了，現在要解決問題。**
-                **這是一張「裁切過」的特寫截圖，專注於畫面中央的積木區。**
-                請用"非常溫柔、有耐心"的語氣。
-                請檢查跳跳貓任務(空白鍵->Y+100->等待->Y-100)是否有錯？
-                給出一個明確的提示即可。
-                `;
-            } else {
-                systemPrompt = `你是 Scratch 積木大師。對象是小學高年級。這是一張放大顯示的積木區截圖。請檢查程式邏輯是否符合跳跳貓任務。請用簡單清楚的中文指出問題，並給予鼓勵。`;
-            }
-
-            try {
-                const res = await fetch(url, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [
-                                { text: systemPrompt },
-                                { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
-                            ]
-                        }]
-                    })
-                });
-                const data = await res.json();
-                const reply = data.candidates[0].content.parts[0].text;
-                taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
-                taBox.scrollTop = taBox.scrollHeight;
-            } catch(e) {
-                taBox.innerHTML += `<div class="msg ai">連線失敗。</div>`;
+            } finally {
+                // ★★★ 修正連線失敗：強制清理 Video 資源 ★★★
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                const videoEl = document.getElementById('capture-video');
+                videoEl.srcObject = null; // 斷開連結，讓瀏覽器釋放資源
             }
         }
     </script>
