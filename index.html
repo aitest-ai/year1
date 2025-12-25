@@ -413,7 +413,7 @@
 
         // --- Gemini API (Text) ---
         async function callGeminiText(userText) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
             
             // ★ AI 人設：友善、鼓勵、不說教 ★
@@ -437,7 +437,7 @@
         // --- Gemini API (Vision) ---
         async function callGeminiVision(mode, image64) {
             const cleanBase64 = image64.split(',')[1];
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
 
             let systemPrompt = "";
