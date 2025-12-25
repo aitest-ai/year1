@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>第一年計畫：Scratch 嵌入與視覺 AI 系統 (V3 穩定版)</title>
+    <title>第一年計畫：Scratch 嵌入與視覺 AI 系統 (V4 無遮擋版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -47,14 +47,6 @@
         /* 右側：Scratch 嵌入容器 */
         .scratch-container { flex: 1; position: relative; background: white; }
         
-        /* 遮罩 */
-        .capture-mask {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.9); z-index: 50; display: none;
-            flex-direction: column; justify-content: center; align-items: center; 
-            font-size: 1.2em; color: var(--primary); font-weight: bold;
-        }
-
         /* iframe 設定 */
         iframe { width: 100%; height: 100%; border: none; }
 
@@ -78,13 +70,13 @@
 
     <div id="ai-modal" class="overlay">
         <div class="modal">
-            <h2 style="color: #FFAB19; margin-top:0;">🐱 遇到困難了嗎？</h2>
+            <h2 style="color: #FFAB19; margin-top:0;">🐱 需要幫忙嗎？</h2>
             <p style="color:#555;">AI 偵測到您似乎有點焦慮。讓我幫您看看現在的積木程式，給一點提示好嗎？</p>
             
             <div style="font-size: 0.85em; color: #444; background: #eef; padding: 12px; border-radius: 6px; margin: 20px 0; text-align: left; border-left: 4px solid var(--primary);">
                 <strong>🔔 操作步驟：</strong><br>
                 1. 點擊下方按鈕。<br>
-                2. 在彈出的視窗中，選擇 <strong>「目前的標籤頁 (This Tab)」</strong>。<br>
+                2. 瀏覽器彈窗時，請選擇 <strong>「目前的標籤頁 (This Tab)」</strong>。<br>
                 3. 點擊「分享」。
             </div>
             
@@ -124,7 +116,7 @@
                 <div class="msg ai">
                     嗨！右邊是 Scratch 編輯器。<br>
                     如果你卡關了，我會主動跳出來幫你看畫面喔！<br>
-                    (記得允許畫面分享權限，我才能看到積木)
+                    (請記得：不要讓其它視窗擋住 Scratch 積木區喔)
                 </div>
             </div>
         </div>
@@ -135,11 +127,6 @@
     </div>
 
     <div class="scratch-container">
-        <div id="capture-loading" class="capture-mask">
-            <div style="font-size:30px; margin-bottom:10px;">📸</div>
-            正在截取積木畫面...
-        </div>
-        
         <iframe id="scratch-frame" 
             src="https://stretch3.github.io/" 
             allow="autoplay; camera; microphone; display-capture">
@@ -153,7 +140,7 @@
         // ==========================================
         // 1. 設定 API Key (Gemini 1.5 Flash)
         // ==========================================
-        const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; // ★★★ 請在此填入您的 API Key ★★★
+        const API_KEY = "YOUR_GEMINI_API_KEY"; // ★★★ 請在此填入您的 API Key ★★★
 
         // ==========================================
         // 2. 核心技術：繞過 CORS 的截圖大法
@@ -161,10 +148,10 @@
         async function captureScreenAndAnalyze(source) {
             const btn = document.getElementById('manual-btn');
             const originalText = btn.innerHTML;
-            const mask = document.getElementById('capture-loading');
             
             if(source === 'auto') closeModal();
             
+            // 改變按鈕狀態，但不使用全螢幕遮罩，以免擋住畫面
             btn.disabled = true;
             btn.innerHTML = "⏳ 等待畫面授權...";
 
@@ -177,8 +164,7 @@
                     preferCurrentTab: true 
                 });
 
-                mask.style.display = 'flex'; // 顯示遮罩
-                btn.innerHTML = "📸 截圖處理中...";
+                btn.innerHTML = "📸 正在截取...";
 
                 const videoEl = document.getElementById('capture-video');
                 videoEl.srcObject = stream;
@@ -187,7 +173,8 @@
                 await new Promise((resolve) => videoEl.onloadedmetadata = resolve);
                 videoEl.play();
                 
-                // 等待 0.5 秒確保畫面完整
+                // ★關鍵：等待 0.5 秒。
+                // 因為按下分享瞬間，瀏覽器可能會切換焦點或顯示通知條，等待一下能確保畫面穩定
                 await new Promise(r => setTimeout(r, 500));
 
                 // 2. 畫到 Canvas (截圖)
@@ -200,7 +187,6 @@
                 // 3. 停止分享 (重要！立即切斷)
                 stream.getTracks().forEach(track => track.stop());
                 videoEl.srcObject = null;
-                mask.style.display = 'none';
 
                 // 4. 取得圖片 (Base64 JPEG)
                 const base64Image = canvas.toDataURL('image/jpeg', 0.7);
@@ -212,7 +198,6 @@
 
             } catch (err) {
                 console.error("截圖失敗:", err);
-                mask.style.display = 'none';
                 if (err.name === 'NotAllowedError') {
                     addMsg('ai', '⚠️ 您取消了畫面分享，我無法看到您的積木。請再試一次並點選「分享」。');
                 } else {
@@ -229,19 +214,21 @@
         // ==========================================
         async function callGeminiVision(base64Data) {
             const cleanBase64 = base64Data.split(',')[1];
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             
             const prompt = `
             你是一位親切的 Scratch 程式設計助教。
             這是一張學生正在操作 Scratch 的螢幕截圖。
             
-            請專注辨識畫面中的「積木程式區」：
-            1. 分析學生目前拼出的積木邏輯。
-            2. 如果是空白的，建議他從「當綠旗被點擊」開始。
-            3. 如果有邏輯錯誤（例如：移動了但沒有迴圈），請引導他。
-            4. 請用繁體中文回答，語氣要鼓勵學生，字數 100 字內。
+            任務：
+            1. 請專注辨識畫面中的「積木程式區」(通常在中間)。
+            2. 分析學生目前拼出的積木邏輯。
+            3. 如果畫面是空的(沒有積木)，請建議學生：
+               「我看你的程式區還是空的喔！試著從黃色的【事件】積木區拉出【當綠旗被點擊】開始吧！」
+            4. 如果有明顯邏輯錯誤(例如：移動了但沒有迴圈)，請引導他。
+            5. 請用繁體中文回答，語氣要鼓勵學生，字數 100 字內。
             
-            (如果截圖不清楚或不是 Scratch 畫面，請告訴學生)
+            (注意：這是一張螢幕截圖，請忽略瀏覽器的邊框或其它無關視窗)
             `;
 
             try {
@@ -262,7 +249,7 @@
                 if(data.candidates && data.candidates[0].content) {
                     addMsg('ai', data.candidates[0].content.parts[0].text);
                 } else {
-                    addMsg('ai', 'AI 暫時無法辨識，請稍後再試。');
+                    addMsg('ai', 'AI 暫時無法辨識，請確認 API Key。');
                 }
             } catch (e) {
                 addMsg('ai', 'API 連線錯誤: ' + e.message);
