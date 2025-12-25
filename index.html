@@ -2,229 +2,320 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 智能夥伴 - 貓咪老師 (連線測試版)</title>
+    <title>Scratch 視覺化 AI 輔導系統 (截圖版)</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    
+    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+    <script src="https://unpkg.com/blockly/msg/zh-hant.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
-        /* 簡單的 CSS 讓介面看起來像個樣品 */
-        body {
-            font-family: '微軟正黑體', sans-serif;
-            background-color: #f0f4f8;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
+        /* 仿 Scratch 3.0 介面配色 */
+        :root {
+            --scratch-ui: #E9F1FC;
+            --scratch-header: #4D97FF;
+            --block-motion: #4C97FF;
+            --block-control: #FFAB19;
+            --block-events: #FFBF00;
         }
 
-        .container {
-            background: white;
-            width: 90%;
-            max-width: 500px;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
+        body { margin: 0; height: 100vh; display: flex; font-family: sans-serif; background: var(--scratch-ui); overflow: hidden; }
 
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+        /* 左側：監控區 */
+        .sidebar { width: 250px; background: white; border-right: 1px solid #ddd; padding: 10px; display: flex; flex-direction: column; }
+        .cam-container { width: 100%; height: 180px; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 3px solid #ddd; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .status-box { padding: 10px; background: #f9f9f9; border-radius: 5px; font-size: 0.9em; }
+        .stress-bar-bg { height: 8px; background: #eee; border-radius: 4px; margin-top: 5px; overflow: hidden; }
+        .stress-bar { height: 100%; width: 0%; background: #FF5555; transition: width 0.5s; }
 
-        .cat-avatar {
-            font-size: 80px;
-            margin-bottom: 10px;
-            animation: bounce 2s infinite;
-        }
+        /* 中間：積木區 */
+        .workspace { flex: 1; position: relative; }
+        #blocklyDiv { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
 
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        h1 { color: #333; margin: 0; font-size: 1.5rem; }
-        p.subtitle { color: #666; font-size: 0.9rem; margin-top: 5px; }
-
-        .control-panel {
-            background: #eef2f5;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-        }
-
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        /* 右側：AI 助手區 */
+        .assistant-panel { width: 350px; background: white; border-left: 1px solid #ddd; display: flex; flex-direction: column; }
+        .chat-header { background: var(--scratch-header); color: white; padding: 10px; font-weight: bold; }
+        .chat-body { flex: 1; padding: 10px; overflow-y: auto; background: #fcfcfc; }
+        .msg { margin-bottom: 10px; padding: 10px; border-radius: 10px; max-width: 90%; font-size: 0.9em; line-height: 1.4; }
+        .msg.ai { background: #E6F7FF; border: 1px solid #B3E0FF; align-self: flex-start; }
+        .msg.user { background: #4C97FF; color: white; align-self: flex-end; margin-left: auto; }
         
-        select, textarea, input {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box; /* 確保 padding 不會撐破寬度 */
+        /* 截圖預覽 (除錯用，可隱藏) */
+        .screenshot-preview { margin-top: 10px; border: 1px dashed #ccc; padding: 5px; text-align: center; }
+        #preview-img { max-width: 100%; max-height: 150px; display: none; border: 1px solid #eee; }
+
+        /* 控制按鈕 */
+        .action-btn { 
+            margin: 10px; padding: 10px; border: none; border-radius: 20px; 
+            background: var(--block-control); color: white; font-weight: bold; cursor: pointer; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
         }
+        .action-btn:hover { opacity: 0.9; }
+        .loading { opacity: 0.6; pointer-events: none; }
 
-        textarea { height: 80px; font-family: monospace; font-size: 0.85rem; }
-
-        button {
-            width: 100%;
-            background-color: #4CAF50; /* Green */
-            color: white;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        button:hover { background-color: #45a049; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
-
-        .chat-bubble {
-            position: relative;
-            background: #fff3cd; /* 黃色對話框 */
-            border: 2px solid #ffeeba;
-            padding: 15px;
-            border-radius: 15px;
-            margin-top: 20px;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-        }
-
-        .chat-bubble::before {
-            content: '';
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 0 10px 10px 10px;
-            border-style: solid;
-            border-color: transparent transparent #ffeeba transparent;
-        }
-
-        .status {
-            text-align: center;
-            font-size: 0.8rem;
-            margin-top: 10px;
-            color: #888;
-        }
-
-        .error { color: red; }
-        .success { color: green; }
-
+        /* 彈窗 */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .modal { background: white; width: 400px; padding: 20px; border-radius: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header">
-            <div class="cat-avatar">🐱‍💻</div>
-            <h1>貓咪老師 AI 測試終端</h1>
-            <p class="subtitle">Scratch 情緒偵測與引導系統 MVP</p>
+    <div id="alert-overlay" class="overlay">
+        <div class="modal">
+            <h2 style="color: #FFAB19;">🐱 需要幫忙嗎？</h2>
+            <p>偵測到您似乎有點困惑。AI 可以幫您「看」一下現在的積木，並給出建議喔！</p>
+            <button class="action-btn" onclick="captureAndAnalyze('auto')">📸 截圖並分析</button>
+            <button class="action-btn" style="background:#ccc;" onclick="document.getElementById('alert-overlay').style.display='none'">我自己試試</button>
         </div>
-
-        <div class="control-panel">
-            <label for="emotion-select">1. 模擬學生情緒 (Simulate Emotion):</label>
-            <select id="emotion-select">
-                <option value="neutral">😐 平靜 (Neutral)</option>
-                <option value="happy">😄 開心 (Happy)</option>
-                <option value="sad">😢 難過/挫折 (Sad)</option>
-                <option value="angry">😡 生氣 (Angry)</option>
-                <option value="surprised">😲 驚訝 (Surprised)</option>
-            </select>
-
-            <label for="code-input">2. 目前的程式積木 (JSON 結構):</label>
-            <textarea id="code-input">
-{
-  "block": "repeat_loop",
-  "times": 9,
-  "inside": "move_10_steps"
-}</textarea>
-
-            <label for="user-message">3. 學生求助訊息:</label>
-            <input type="text" id="user-message" value="老師，我的迴圈好像怪怪的？" placeholder="輸入你想問的話...">
-            
-            <button id="send-btn">呼叫貓咪老師 (Call AI)</button>
-        </div>
-
-        <div class="chat-bubble">
-            <span id="response-text">喵？請按下按鈕，我才會醒來喔！</span>
-        </div>
-        
-        <div class="status" id="status-text">準備就緒</div>
     </div>
 
+    <div class="sidebar">
+        <h3 style="color: #4C97FF; margin: 0 0 10px 0;">Scratch 學習系統</h3>
+        <div class="cam-container"><video id="video" autoplay muted playsinline></video></div>
+        
+        <div class="status-box">
+            <div>情緒狀態: <span id="emo-val" style="font-weight:bold; color:#FFAB19;">...</span></div>
+            <div style="margin-top:5px;">焦慮指數:</div>
+            <div class="stress-bar-bg"><div id="stress-bar" class="stress-bar"></div></div>
+        </div>
+
+        <div class="screenshot-preview">
+            <small>AI 視野 (截圖預覽)</small>
+            <img id="preview-img" alt="積木截圖">
+        </div>
+    </div>
+
+    <div class="workspace">
+        <div id="blocklyDiv"></div>
+    </div>
+
+    <div class="assistant-panel">
+        <div class="chat-header">🤖 AI 視覺助教 (Gemini Vision)</div>
+        <div class="chat-body" id="chat-box">
+            <div class="msg ai">嗨！我是你的 AI 助教。我可以直接「看」你的積木圖片喔！只要按下分析按鈕，我就會幫你檢查。</div>
+        </div>
+        <button id="analyze-btn" class="action-btn" onclick="captureAndAnalyze('manual')">📸 傳送積木截圖給 AI</button>
+    </div>
+
+    <xml id="toolbox" style="display: none">
+        <category name="動作" colour="#4C97FF">
+            <block type="move_steps"></block>
+            <block type="turn_right"></block>
+        </category>
+        <category name="控制" colour="#FFAB19">
+            <block type="controls_repeat_ext">
+                <value name="TIMES"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
+            </block>
+            <block type="controls_if"></block>
+        </category>
+        <category name="事件" colour="#FFBF00">
+            <block type="event_flag"></block>
+        </category>
+        <category name="運算" colour="#59C059">
+            <block type="math_number"></block>
+        </category>
+    </xml>
+
     <script>
-        // =========================================================
-        // ★★★ 請將下方的網址換成您剛剛 GAS 部署出來的網址 ★★★
-        // 格式通常是 https://script.google.com/macros/s/XXXXX/exec
-        // =========================================================
-        const GAS_API_URL = "您的_GAS_WEB_APP_URL_請貼在這裡"; 
-
-        const sendBtn = document.getElementById('send-btn');
-        const responseText = document.getElementById('response-text');
-        const statusText = document.getElementById('status-text');
-
-        sendBtn.addEventListener('click', () => {
-            // 0. 檢查網址有沒有填寫
-            if (GAS_API_URL.includes("請貼在這裡")) {
-                alert("請先用筆記本打開 index.html，把 GAS_API_URL 換成您的部署網址！");
-                return;
+        // ==========================================
+        // 1. 設定自定義積木 (模擬 Scratch 外觀)
+        // ==========================================
+        Blockly.Blocks['event_flag'] = {
+            init: function() {
+                this.jsonInit({ "message0": "當 🏁 被點擊", "nextStatement": null, "colour": "#FFBF00" });
             }
+        };
+        Blockly.Blocks['move_steps'] = {
+            init: function() {
+                this.jsonInit({ "message0": "移動 %1 點", "args0": [{"type": "field_number", "name": "STEPS", "value": 10}], "previousStatement": null, "nextStatement": null, "colour": "#4C97FF" });
+            }
+        };
+        Blockly.Blocks['turn_right'] = {
+            init: function() {
+                this.jsonInit({ "message0": "右轉 ↻ %1 度", "args0": [{"type": "field_number", "name": "DEG", "value": 15}], "previousStatement": null, "nextStatement": null, "colour": "#4C97FF" });
+            }
+        };
 
-            // 1. 鎖住按鈕防止連點
-            sendBtn.disabled = true;
-            sendBtn.innerText = "貓咪老師思考中...";
-            statusText.innerText = "正在連線到 Google 雲端大腦...";
-            statusText.className = "status";
-            responseText.style.opacity = "0.5"; // 變淡表示讀取中
+        // 初始化 Blockly (開啟 Scratch 3.0 風格)
+        const workspace = Blockly.inject('blocklyDiv', {
+            toolbox: document.getElementById('toolbox'),
+            renderer: 'zelos', // ★ 關鍵：這讓積木看起來像 Scratch
+            zoom: { startScale: 0.9 },
+            grid: { spacing: 20, length: 3, colour: '#ddd', snap: true }
+        });
 
-            // 2. 收集資料
+        // ==========================================
+        // 2. 核心功能：截圖並傳送給 AI
+        // ==========================================
+        
+        // ★ 請填入您的 API Key (必須有 Gemini 1.5 Flash 權限) ★
+        const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; 
+
+        async function captureAndAnalyze(source) {
+            const btn = document.getElementById('analyze-btn');
+            btn.innerText = "📸 截圖中...";
+            btn.classList.add('loading');
+
+            if(source === 'auto') document.getElementById('alert-overlay').style.display = 'none';
+
+            try {
+                // 步驟 A: 將積木區轉換為圖片 (Base64)
+                // Blockly 內建將 Workspace 轉 SVG，我們再轉 Canvas
+                const imageBase64 = await workspaceToPngBase64(workspace);
+                
+                // 顯示預覽圖 (除錯用)
+                document.getElementById('preview-img').src = imageBase64;
+                document.getElementById('preview-img').style.display = 'block';
+
+                addMsg('user', '📸 (已傳送積木截圖)');
+                btn.innerText = "🤖 AI 分析中...";
+
+                // 步驟 B: 呼叫 Gemini Vision API
+                await callGeminiVision(imageBase64);
+
+            } catch (e) {
+                console.error(e);
+                addMsg('ai', '系統錯誤：截圖或連線失敗。');
+            } finally {
+                btn.innerText = "📸 傳送積木截圖給 AI";
+                btn.classList.remove('loading');
+            }
+        }
+
+        // ★ 技術核心：SVG 轉 PNG Base64 ★
+        function workspaceToPngBase64(ws) {
+            return new Promise((resolve, reject) => {
+                try {
+                    // 1. 取得 SVG 數據
+                    // 為了美觀，我們稍微調整 padding
+                    const metrics = ws.getMetrics();
+                    const width = metrics.viewWidth;
+                    const height = metrics.viewHeight;
+                    
+                    // 這是 Blockly 內建的 SVG 匯出方式，比較 hacky 但有效
+                    const svg = ws.getParentSvg().cloneNode(true);
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                    svg.removeAttribute('transform');
+                    
+                    // 處理 CSS 樣式 (Blockly 的樣式是外部的，截圖需要內聯)
+                    const style = document.createElement('style');
+                    style.innerHTML = `.blocklyPath { fill: none; stroke-width: 1px; } .blocklyText { font-family: sans-serif; font-size: 11pt; fill: #fff; }`; // 簡單補一些樣式
+                    svg.insertBefore(style, svg.firstChild);
+
+                    const xml = new XMLSerializer().serializeToString(svg);
+                    const svg64 = btoa(unescape(encodeURIComponent(xml)));
+                    const image64 = 'data:image/svg+xml;base64,' + svg64;
+
+                    // 2. 繪製到 Canvas
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        // 填滿白色背景 (不然是透明的)
+                        ctx.fillStyle = "#ffffff";
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL("image/png"));
+                    };
+                    img.onerror = reject;
+                    img.src = image64;
+
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }
+
+        // 步驟 C: 呼叫 Gemini API
+        async function callGeminiVision(base64Image) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            
+            // 去掉 data:image/png;base64, 前綴
+            const cleanBase64 = base64Image.split(',')[1];
+
+            const prompt = `
+            你是一個 Scratch 程式設計老師。
+            請看這張積木截圖。
+            1. 請解釋這段積木的邏輯在做什麼？
+            2. 如果積木看起來沒問題，請稱讚學生。
+            3. 如果積木有明顯邏輯錯誤（例如只有移動沒有迴圈，或者沒有事件積木），請給予引導提示。
+            請用繁體中文回答，語氣親切。
+            `;
+
             const payload = {
-                emotion: document.getElementById('emotion-select').value,
-                code: JSON.parse(document.getElementById('code-input').value || "{}"),
-                message: document.getElementById('user-message').value
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: "image/png", data: cleanBase64 } }
+                    ]
+                }]
             };
 
-            // 3. 發送請求 (Fetch)
-            // 技巧：使用 text/plain 避開 CORS Preflight 檢查
-            fetch(GAS_API_URL, {
-                method: "POST",
-                body: JSON.stringify(payload),
-                headers: {
-                    "Content-Type": "text/plain;charset=utf-8"
-                }
-            })
-            .then(response => response.json()) // GAS 回傳的一定要是 JSON
-            .then(data => {
-                console.log("收到回應:", data);
-                
-                if (data.status === "success") {
-                    // 成功：顯示貓咪老師的話
-                    responseText.innerText = data.message;
-                    responseText.style.color = "#333";
-                    statusText.innerText = "連線成功！(延遲: " + new Date().toLocaleTimeString() + ")";
-                    statusText.classList.add("success");
-                } else {
-                    // 邏輯錯誤
-                    responseText.innerText = "系統錯誤：" + data.message;
-                    statusText.classList.add("error");
-                }
-            })
-            .catch(error => {
-                console.error("連線失敗:", error);
-                responseText.innerText = "嗚嗚... 連不到伺服器。請檢查：\n1. GAS 網址是否正確？\n2. GAS 部署權限是否設為「任何人」？";
-                statusText.innerText = "連線失敗 (Check Console)";
-                statusText.classList.add("error");
-            })
-            .finally(() => {
-                // 解鎖按鈕
-                sendBtn.disabled = false;
-                sendBtn.innerText = "呼叫貓咪老師 (Call AI)";
-                responseText.style.opacity = "1";
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-        });
+
+            const data = await response.json();
+            if(data.candidates && data.candidates[0].content) {
+                const reply = data.candidates[0].content.parts[0].text;
+                addMsg('ai', reply);
+            } else {
+                addMsg('ai', "AI 無法辨識圖片，請稍後再試。");
+            }
+        }
+
+        function addMsg(role, text) {
+            const box = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            div.innerHTML = marked.parse(text);
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // ==========================================
+        // 3. 情緒偵測 (Face API)
+        // ==========================================
+        let stress = 0;
+        async function initMonitor() {
+            const URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+            await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
+            await faceapi.nets.faceExpressionNet.loadFromUri(URL);
+
+            const video = document.getElementById('video');
+            navigator.mediaDevices.getUserMedia({ video: {} }).then(s => video.srcObject = s);
+
+            setInterval(async () => {
+                const dets = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+                if(dets.length) {
+                    const exps = dets[0].expressions;
+                    const top = Object.keys(exps).reduce((a,b)=>exps[a]>exps[b]?a:b);
+                    
+                    document.getElementById('emo-val').innerText = top;
+
+                    if(['sad','angry','fearful'].includes(top)) stress += 15;
+                    else stress = Math.max(0, stress - 2);
+
+                    document.getElementById('stress-bar').style.width = Math.min(100, stress) + "%";
+
+                    if(stress > 90) { // 壓力過大
+                        stress = 0;
+                        document.getElementById('alert-overlay').style.display = 'flex';
+                    }
+                }
+            }, 1000);
+        }
+
+        initMonitor();
+
     </script>
 </body>
 </html>
