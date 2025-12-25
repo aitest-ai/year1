@@ -2,107 +2,121 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>第一年計畫：雙 AI 情感運算學習系統 (V12 完整功能版)</title>
+    <title>Scratch 魔法實驗室 (V16 友善語氣版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
+        /* 配色保持活潑但不刺眼 */
         :root { 
-            --primary: #4C97FF; --accent: #FFAB19; --danger: #FF5555; 
-            --bg: #F0F2F5; --chat-bg: #ffffff;
+            --primary: #4C97FF; /* Scratch Blue */
+            --accent: #FFAB19;  /* Scratch Orange */
+            --danger: #FF6B6B;  
+            --bg: #F7F9FC;
+            --chat-bg: #ffffff;
         }
-        body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); overflow: hidden; }
+        body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif; background: var(--bg); overflow: hidden; }
 
-        /* 左側：情緒監控 */
+        /* 左側面板 */
         .sidebar { 
             width: 320px; background: white; padding: 15px; 
-            display: flex; flex-direction: column; border-right: 1px solid #ccc; 
-            z-index: 10; box-shadow: 2px 0 15px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; border-right: 2px solid #E0E0E0; 
+            z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.05);
         }
         
         .task-card {
-            background: #E9F1FC; border-left: 5px solid var(--primary);
-            padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 0.9em;
+            background: #E3F2FD; border-left: 6px solid var(--primary);
+            padding: 15px; border-radius: 12px; margin-bottom: 15px; font-size: 1em;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
         .cam-wrapper {
             position: relative; width: 100%; height: 180px; 
-            background: #000; border-radius: 8px; overflow: hidden; 
-            border: 2px solid #ddd; margin-bottom: 5px;
-            display: flex; justify-content: center; align-items: center;
+            background: #000; border-radius: 12px; overflow: hidden; 
+            border: 3px solid #FFD54F;
+            margin-bottom: 10px; display: flex; justify-content: center; align-items: center;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
         .cam-placeholder { position: absolute; text-align: center; color: #fff; display: none; width: 100%; z-index: 5; }
-        .retry-btn { background: var(--primary); border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .retry-btn { background: var(--primary); border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; color: white; }
 
         .face-overlay {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            background: rgba(0,0,0,0.6); color: white; padding: 5px;
-            text-align: center; font-size: 0.8em;
+            background: rgba(0,0,0,0.7); color: white; padding: 8px;
+            text-align: center; font-size: 0.9em; border-radius: 0 0 10px 10px;
         }
 
-        /* 壓力儀表板 */
+        /* 儀表板 */
         .monitor-panel {
-            background: #fff; border: 1px solid #eee; border-radius: 8px;
-            padding: 10px; margin-bottom: 10px;
+            background: #fff; border: 2px solid #eee; border-radius: 15px;
+            padding: 15px; margin-bottom: 10px;
         }
-        .metric-row { display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 3px; color: #666; }
-        .stress-bar-bg { height: 10px; background: #eee; border-radius: 5px; overflow: hidden; margin-top: 5px; }
-        .stress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.5s, background 0.5s; }
+        .metric-row { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px; color: #555; }
+        .high-stress { color: var(--danger); font-weight: bold; }
+        .stress-bar-bg { height: 12px; background: #eee; border-radius: 10px; overflow: hidden; margin-top: 8px; }
+        .stress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.5s, background 0.5s; border-radius: 10px; }
 
-        /* 右側：主畫面 */
+        /* 右側主畫面 */
         .main-area { flex: 1; position: relative; display: flex; flex-direction: column; }
         .scratch-frame { flex: 1; width: 100%; border: none; }
 
-        /* 助教 AI (TA) 面板 - 升級版 */
+        /* TA 面板 */
         .ta-panel {
-            height: 300px; background: white; border-top: 1px solid #ccc;
-            display: flex; flex-direction: column; padding: 10px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 20;
+            height: 300px; background: white; border-top: 2px solid #E0E0E0;
+            display: flex; flex-direction: column; padding: 15px;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.05); z-index: 20;
         }
-        .ta-header { font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
-        .ta-chat-box { flex: 1; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 5px; border: 1px solid #eee; font-size: 0.9em; margin-bottom: 5px; }
+        .ta-header { font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 1.1em; }
+        .ta-chat-box { flex: 1; overflow-y: auto; background: #FAFAFA; padding: 15px; border-radius: 12px; border: 2px solid #eee; font-size: 0.95em; margin-bottom: 10px; }
         
-        /* 訊息樣式 */
-        .msg { margin-bottom: 8px; padding: 8px 12px; border-radius: 10px; max-width: 95%; line-height: 1.4; word-wrap: break-word; }
-        .msg.ai { background: #E6F7FF; color: #333; align-self: flex-start; border: 1px solid #B3E0FF; }
-        .msg.user { background: var(--primary); color: white; align-self: flex-end; margin-left: auto; }
-        .msg.system { background: #FFF3E0; color: #E65100; text-align: center; font-size: 0.85em; border: 1px solid #FFE0B2; align-self: center; width: 90%; }
+        .ta-input-row { display: flex; gap: 10px; align-items: center; }
+        .ta-input { flex: 1; padding: 10px 15px; border: 2px solid #ddd; border-radius: 25px; outline: none; height: 40px; box-sizing: border-box; font-size: 1em; }
+        .ta-input:focus { border-color: var(--primary); }
+        .btn-icon { 
+            background: #F0F0F0; border: none; width: 42px; height: 42px; 
+            border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; 
+            font-size: 1.4em; flex-shrink: 0; transition: 0.2s;
+        }
+        .btn-icon:hover { background: #E0E0E0; transform: scale(1.1); }
+        .btn-send { 
+            background: var(--primary); color: white; border: none; padding: 0 25px; 
+            border-radius: 25px; cursor: pointer; font-weight: bold; height: 40px; flex-shrink: 0; font-size: 1em;
+        }
+        .btn-send:hover { background: #357abd; transform: translateY(-2px); }
 
-        /* 輸入區塊 (文字 + 截圖) */
-        .ta-input-row { display: flex; gap: 5px; }
-        .ta-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
-        .btn-icon { background: #eee; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 1.2em; }
-        .btn-icon:hover { background: #ddd; }
-        .btn-send { background: var(--primary); color: white; border: none; padding: 0 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        .btn-send:hover { background: #357abd; }
+        .msg { margin-bottom: 10px; padding: 10px 15px; border-radius: 15px; max-width: 95%; line-height: 1.5; word-wrap: break-word; }
+        .msg.ai { background: #E3F2FD; color: #1565C0; align-self: flex-start; border-radius: 15px 15px 15px 2px; }
+        .msg.user { background: var(--primary); color: white; align-self: flex-end; border-radius: 15px 15px 2px 15px; }
+        .msg.system { background: #FFF3E0; color: #E65100; text-align: center; font-size: 0.9em; border: 1px solid #FFE0B2; align-self: center; width: 90%; border-radius: 10px; }
 
         /* 暖心 AI 彈窗 */
         .empathy-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 9999; display: none;
-            justify-content: center; align-items: center;
-            backdrop-filter: blur(5px);
+            background: rgba(255, 255, 255, 0.85); 
+            z-index: 9999; display: none;
+            justify-content: center; align-items: center; backdrop-filter: blur(5px);
         }
         .empathy-box {
-            background: white; width: 450px; max-height: 80vh; 
+            background: white; width: 480px; max-height: 85vh; 
             border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: popIn 0.4s;
-            border: 3px solid #FFD180;
+            box-shadow: 0 20px 60px rgba(76, 151, 255, 0.2); animation: fadeIn 0.4s;
+            border: 3px solid #FFD54F;
         }
-        @keyframes popIn { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+        @keyframes fadeIn { from {transform: translateY(20px); opacity: 0;} to {transform: translateY(0); opacity: 1;} }
 
-        .empathy-header { background: #FFF8E1; padding: 20px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #FFE0B2; flex-shrink: 0; }
-        .avatar-heart { font-size: 3em; animation: beat 1.5s infinite; }
-        @keyframes beat { 0%, 100% {transform: scale(1);} 50% {transform: scale(1.1);} }
-        .empathy-content { padding: 20px; color: #5D4037; line-height: 1.6; overflow-y: auto; flex: 1; }
-        .empathy-actions { padding: 15px; background: #fff; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-        .btn-comfort { padding: 12px 20px; border-radius: 25px; border: none; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; }
-        .btn-warm { background: #FFAB00; color: white; box-shadow: 0 4px 10px rgba(255, 171, 0, 0.3); }
-        .btn-warm:hover { transform: translateY(-2px); }
-        .btn-close { background: #f0f0f0; color: #666; }
+        .empathy-header { background: #FFF8E1; padding: 25px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #FFE0B2; flex-shrink: 0; }
+        .avatar-heart { font-size: 3.5em; } 
+        
+        .empathy-content { padding: 30px; color: #5D4037; line-height: 1.8; overflow-y: auto; flex: 1; font-size: 1.1em; }
+        
+        .empathy-actions { padding: 20px; background: #fff; border-top: 2px solid #f0f0f0; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+        .btn-comfort { padding: 15px 20px; border-radius: 30px; border: none; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-warm { background: #FFAB00; color: white; box-shadow: 0 5px 15px rgba(255, 171, 0, 0.3); }
+        .btn-warm:hover { transform: scale(1.02); }
+        .btn-close { background: #F5F5F5; color: #777; }
+        .btn-close:hover { background: #EEEEEE; }
 
         #capture-video, #capture-canvas { display: none; }
     </style>
@@ -112,32 +126,31 @@
     <div id="empathy-modal" class="empathy-modal">
         <div class="empathy-box">
             <div class="empathy-header">
-                <div class="avatar-heart">❤️</div>
+                <div class="avatar-heart">🧡</div>
                 <div>
-                    <h2 style="margin:0; color:#F57F17;">深呼吸...</h2>
-                    <small style="color:#F9A825;">暖心夥伴</small>
+                    <h2 style="margin:0; color:#F57F17; font-size:1.5em;">深呼吸，放鬆一下</h2>
+                    <small style="color:#F9A825; font-size:1em;">我是你的暖心夥伴</small>
                 </div>
             </div>
             <div class="empathy-content" id="empathy-msg">
-                偵測到您似乎有些焦慮，操作滑鼠和鍵盤的速度也變快了。<br><br>
-                學習程式有時候真的很令人挫折，我完全理解。我們不急，先休息一下。如果您願意，可以把任務交給助教 AI，讓他幫您找找問題在哪裡，好嗎？
+                Loading...
             </div>
             <div class="empathy-actions">
-                <button class="btn-comfort btn-warm" onclick="handoverToTA()">📸 請助教幫我看積木</button>
-                <button class="btn-comfort btn-close" onclick="closeEmpathy()">沒事，我休息好了</button>
+                <button class="btn-comfort btn-warm" onclick="handoverToTA()">📸 請魔法導師幫我看積木</button>
+                <button class="btn-comfort btn-close" onclick="closeEmpathy()">沒事，我再試試看</button>
             </div>
         </div>
     </div>
 
     <div class="sidebar">
-        <h3 style="margin:0 0 10px 0; color:#333;">🎓 情緒感知系統</h3>
+        <h3 style="margin:0 0 10px 0; color:#444;">🧩 Scratch 魔法實驗室</h3>
         
         <div class="task-card">
-            <strong>🎯 本週任務：跳躍貓咪</strong><br>
-            1. 空白鍵事件<br>
-            2. Y + 100 (跳起)<br>
-            3. 等待 0.5 秒<br>
-            4. Y - 100 (落下)
+            <strong>🚀 今天的挑戰：跳跳貓</strong><br>
+            1. 按下空白鍵<br>
+            2. 往上跳 (Y + 100)<br>
+            3. 等一下 (0.5 秒)<br>
+            4. 掉下來 (Y - 100)
         </div>
 
         <div class="cam-wrapper">
@@ -145,23 +158,23 @@
             <div id="cam-error" class="cam-placeholder">
                 ⚠️ 相機未啟動<br><button class="retry-btn" onclick="initSystem()">點擊啟用</button>
             </div>
-            <div class="face-overlay">狀態: <span id="emo-val">初始化中...</span></div>
+            <div class="face-overlay">心情: <span id="emo-val">準備中...</span></div>
         </div>
 
         <div class="monitor-panel">
-            <div class="metric-row"><span>😟 負面表情</span><span id="score-face">0%</span></div>
-            <div class="metric-row"><span>🖱️ 狂點/亂動</span><span id="score-mouse">0%</span></div>
-            <div class="metric-row"><span>⌨️ 鍵盤焦慮</span><span id="score-key">0%</span></div>
-            <hr style="border:0; border-top:1px solid #eee; margin:5px 0;">
-            <div style="display:flex; justify-content:space-between; font-size:0.9em; font-weight:bold;">
-                <span>總壓力指數</span><span id="stress-val">0%</span>
+            <div class="metric-row"><span>😟 表情指數</span><span id="score-face">0%</span></div>
+            <div class="metric-row"><span>🖱️ 滑鼠速度</span><span id="score-mouse">0%</span></div>
+            <div class="metric-row"><span>⌨️ 鍵盤力道</span><span id="score-key">0%</span></div>
+            <hr style="border:0; border-top:2px solid #eee; margin:10px 0;">
+            <div style="display:flex; justify-content:space-between; font-size:1em; font-weight:bold; color:#444;">
+                <span>壓力指數</span><span id="stress-val">0%</span>
             </div>
             <div class="stress-bar-bg"><div id="stress-bar" class="stress-fill"></div></div>
         </div>
 
-        <div style="font-size:0.8em; color:#888; margin-top:auto;">
-            * 左側：情緒與行為偵測<br>
-            * 右下：雙功能 AI 助教 (截圖+對話)
+        <div style="font-size:0.85em; color:#888; margin-top:auto; line-height:1.5;">
+            * 右下角：<strong>魔法導師</strong> (解題)<br>
+            * 壓力大時：<strong>暖心夥伴</strong> (關心)
         </div>
     </div>
 
@@ -170,14 +183,14 @@
         
         <div class="ta-panel">
             <div class="ta-header">
-                <span>🤖 智能助教 (TA)</span>
+                <span>🧙‍♂️ 魔法導師 (AI 助教)</span>
             </div>
             <div class="ta-chat-box" id="ta-chat">
-                <div class="msg ai">嗨！我是你的程式助教。你可以用打字的問我問題，或者按相機按鈕讓我看你的積木喔！</div>
+                <div class="msg ai">嗨！我是魔法導師。寫程式遇到問題很正常，你可以打字問我，或是按相機讓我看看你的程式喔！</div>
             </div>
             <div class="ta-input-row">
-                <button class="btn-icon" title="截圖分析" onclick="captureAndAnalyze('TA_NORMAL')">📸</button>
-                <input type="text" id="ta-input" class="ta-input" placeholder="輸入問題..." onkeypress="if(event.key==='Enter') sendTextChat()">
+                <button class="btn-icon" title="截圖給導師看" onclick="captureAndAnalyze('TA_NORMAL')">📸</button>
+                <input type="text" id="ta-input" class="ta-input" placeholder="問導師問題..." onkeypress="if(event.key==='Enter') sendTextChat()">
                 <button class="btn-send" onclick="sendTextChat()">送出</button>
             </div>
         </div>
@@ -189,30 +202,20 @@
     <script>
         const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; // ★★★ 請務必填入您的 API Key ★★★
 
-        // 系統狀態與壓力參數
         let state = {
-            stress: 0,
-            faceScore: 0,
-            mouseScore: 0,
-            keyScore: 0,
+            stress: 0, faceScore: 0, mouseScore: 0, keyScore: 0,
             isInterventionActive: false,
-            // 行為計數器
-            clickCount: 0,
-            keyPressCount: 0,
-            mousePositions: []
+            clickCount: 0, keyPressCount: 0, mousePositions: [],
+            dominantStressor: '' 
         };
 
         // ==========================================
-        // 1. 行為偵測 (滑鼠、鍵盤、點擊)
+        // 1. 行為偵測 (滑鼠/鍵盤)
         // ==========================================
-        
-        // A. 滑鼠移動 (偵測無意義亂動)
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
             state.mousePositions.push({x: e.clientX, y: e.clientY, t: now});
-            // 只保留 1 秒內的軌跡
             state.mousePositions = state.mousePositions.filter(p => now - p.t < 1000);
-            
             if(state.mousePositions.length > 5) {
                 let dist = 0;
                 for(let i=1; i<state.mousePositions.length; i++) {
@@ -220,41 +223,29 @@
                     const p2 = state.mousePositions[i];
                     dist += Math.sqrt(Math.pow(p2.x-p1.x, 2) + Math.pow(p2.y-p1.y, 2));
                 }
-                // 如果 1 秒內移動超過 2000px (非常快且亂)
-                if(dist > 2000) state.mouseScore = Math.min(100, state.mouseScore + 5);
+                if(dist > 2000) state.mouseScore = Math.min(100, state.mouseScore + 10);
             }
         });
+        document.addEventListener('mousedown', () => { state.clickCount++; });
+        document.addEventListener('keydown', () => { state.keyPressCount++; });
 
-        // B. 點擊偵測 (偵測狂點)
-        document.addEventListener('mousedown', () => {
-            state.clickCount++;
-        });
-
-        // C. 鍵盤偵測 (偵測亂按)
-        document.addEventListener('keydown', () => {
-            state.keyPressCount++;
-        });
-
-        // D. 定時計算行為壓力 (每秒)
         setInterval(() => {
-            // 計算點擊頻率
-            if(state.clickCount > 3) state.mouseScore = Math.min(100, state.mouseScore + 20); // 1秒點3次以上
-            else state.mouseScore = Math.max(0, state.mouseScore - 5); // 冷卻
+            if(state.clickCount > 3) state.mouseScore = Math.min(100, state.mouseScore + 20);
+            else state.mouseScore = Math.max(0, state.mouseScore - 5);
 
-            // 計算按鍵頻率
-            if(state.keyPressCount > 5) state.keyScore = Math.min(100, state.keyScore + 20); // 1秒按5次以上
-            else state.keyScore = Math.max(0, state.keyScore - 5); // 冷卻
+            if(state.keyPressCount > 5) state.keyScore = Math.min(100, state.keyScore + 20);
+            else state.keyScore = Math.max(0, state.keyScore - 5);
 
-            // 重置計數器
-            state.clickCount = 0;
-            state.keyPressCount = 0;
-
-            // 更新 UI 顯示
-            document.getElementById('score-mouse').innerText = state.mouseScore + "%";
-            document.getElementById('score-key').innerText = state.keyScore + "%";
-
+            state.clickCount = 0; state.keyPressCount = 0;
+            updateMetricColor('score-mouse', state.mouseScore);
+            updateMetricColor('score-key', state.keyScore);
         }, 1000);
 
+        function updateMetricColor(id, score) {
+            const el = document.getElementById(id);
+            el.innerText = score + "%";
+            if(score > 50) el.classList.add('high-stress'); else el.classList.remove('high-stress');
+        }
 
         // ==========================================
         // 2. 初始化與相機
@@ -268,12 +259,12 @@
 
             try {
                 errorMsg.style.display = 'none';
-                emoVal.innerText = "請求相機...";
+                emoVal.innerText = "正在呼叫相機...";
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
                 video.onloadedmetadata = () => { video.play(); };
 
-                emoVal.innerText = "載入模型...";
+                emoVal.innerText = "準備中...";
                 await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
                 await faceapi.nets.faceExpressionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
                 
@@ -283,12 +274,12 @@
             } catch(e) {
                 console.error(e);
                 errorMsg.style.display = 'block';
-                emoVal.innerText = "啟動失敗";
+                emoVal.innerText = "無法開啟";
             }
         }
 
         // ==========================================
-        // 3. 綜合壓力計算迴圈
+        // 3. 綜合壓力監測 (核心修正)
         // ==========================================
         function startStressLoop() {
             const video = document.getElementById('video');
@@ -297,14 +288,14 @@
             setInterval(async () => {
                 if(video.paused || video.ended || state.isInterventionActive) return;
 
-                // 臉部辨識
                 const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
                 const dets = await faceapi.detectAllFaces(video, options).withFaceExpressions();
                 
                 if(dets.length > 0) {
                     const exps = dets[0].expressions;
                     const top = Object.keys(exps).reduce((a,b)=>exps[a]>exps[b]?a:b);
-                    const map = {neutral:"平靜", happy:"開心", sad:"沮喪", angry:"生氣", fearful:"焦慮", disgusted:"厭惡", surprised:"驚訝"};
+                    // 翻譯 - 不用疊字
+                    const map = {neutral:"平靜 🙂", happy:"開心 😄", sad:"難過 😢", angry:"生氣 😠", fearful:"害怕 😨", disgusted:"討厭 😖", surprised:"驚訝 😲"};
                     emoVal.innerText = map[top] || top;
                     emoVal.style.color = "#fff";
 
@@ -312,41 +303,55 @@
                     else if(top === 'happy') state.faceScore = Math.max(0, state.faceScore - 10); 
                     else state.faceScore = Math.max(0, state.faceScore - 2); 
                 } else {
-                    emoVal.innerText = "未偵測到人臉";
-                    emoVal.style.color = "#FFAB19";
+                    emoVal.innerText = "找不到臉 👀";
+                    emoVal.style.color = "#FFD54F";
                 }
                 
-                // 更新臉部 UI
-                document.getElementById('score-face').innerText = state.faceScore + "%";
+                updateMetricColor('score-face', state.faceScore);
 
-                // ★ 總壓力計算公式 ★
-                // 表情(50%) + 滑鼠(30%) + 鍵盤(20%)
-                state.stress = Math.floor(
-                    (state.faceScore * 0.5) + 
-                    (state.mouseScore * 0.3) + 
-                    (state.keyScore * 0.2)
-                );
+                // 判斷主因
+                if (state.faceScore >= state.mouseScore && state.faceScore >= state.keyScore) state.dominantStressor = 'FACE';
+                else if (state.mouseScore >= state.keyScore) state.dominantStressor = 'MOUSE';
+                else state.dominantStressor = 'KEY';
 
+                state.stress = Math.max(state.faceScore, state.mouseScore, state.keyScore);
                 document.getElementById('stress-val').innerText = state.stress + "%";
                 const bar = document.getElementById('stress-bar');
                 bar.style.width = state.stress + "%";
                 
-                if(state.stress < 50) bar.style.background = "#4C97FF";
-                else if(state.stress < 80) bar.style.background = "#FFAB19";
-                else bar.style.background = "#FF5555";
+                if(state.stress < 50) document.getElementById('stress-bar').style.background = "#4C97FF";
+                else if(state.stress < 80) document.getElementById('stress-bar').style.background = "#FFAB19";
+                else document.getElementById('stress-bar').style.background = "#FF6B6B";
 
-                if(state.stress > 80) triggerEmpathyAI();
+                if(state.stress > 80) triggerEmpathyAI(state.dominantStressor);
 
             }, 1000);
         }
 
         // ==========================================
-        // 4. AI 互動 (文字 + 截圖)
+        // 4. 精準關懷邏輯 (成熟友善版文案)
         // ==========================================
         
-        function triggerEmpathyAI() {
+        function triggerEmpathyAI(reason) {
             state.isInterventionActive = true;
             state.faceScore = 50; state.mouseScore = 0; state.keyScore = 0;
+            
+            const msgEl = document.getElementById('empathy-msg');
+            let content = "";
+
+            if (reason === 'FACE') {
+                content = "你看起來有點困擾，是不是程式卡關了？<br>沒關係，我們先深呼吸，放鬆一下。";
+            } else if (reason === 'MOUSE') {
+                content = "我發現你的滑鼠移動得有點急喔，是不是心裡有點著急？<br>操作太快容易出錯，我們稍微放慢一點節奏。";
+            } else if (reason === 'KEY') {
+                content = "敲鍵盤的力道有點大喔，手會痠的。<br>學習程式遇到困難是很正常的，不用太緊繃。";
+            } else {
+                content = "感覺你現在壓力有點大。<br>我們先休息一下，喝口水，等一下再繼續挑戰！";
+            }
+
+            content += "<br><br>如果你需要幫忙，可以請 **魔法導師** 幫你看看程式哪裡有問題喔！";
+            msgEl.innerHTML = content;
+
             document.getElementById('empathy-modal').style.display = 'flex';
         }
 
@@ -358,31 +363,29 @@
         function handoverToTA() {
             document.getElementById('empathy-modal').style.display = 'none';
             const taBox = document.getElementById('ta-chat');
-            taBox.innerHTML += `<div class="msg system">❤️ 暖心夥伴已將任務轉交給助教...</div>`;
-            captureAndAnalyze('TA_STRESSED');
+            taBox.innerHTML += `<div class="msg system">✨ 暖心夥伴已通知魔法導師...</div>`;
+            
+            captureAndAnalyze('TA_STRESSED_' + state.dominantStressor);
+            
             setTimeout(() => { state.isInterventionActive = false; }, 5000);
         }
 
-        // --- 文字對話功能 ---
+        // --- 聊天與截圖 ---
         async function sendTextChat() {
             const input = document.getElementById('ta-input');
             const val = input.value.trim();
             if(!val) return;
-
             const taBox = document.getElementById('ta-chat');
             taBox.innerHTML += `<div class="msg user">${val}</div>`;
             taBox.scrollTop = taBox.scrollHeight;
             input.value = "";
-
-            // 呼叫 AI (文字模式)
             await callGeminiText(val);
         }
 
-        // --- 截圖對話功能 ---
         async function captureAndAnalyze(mode) {
             const taBox = document.getElementById('ta-chat');
             if(mode.includes('TA')) {
-                taBox.innerHTML += `<div class="msg user">📸 正在截圖...</div>`;
+                taBox.innerHTML += `<div class="msg user">📸 傳送截圖中...</div>`;
             }
 
             try {
@@ -404,16 +407,17 @@
                 await callGeminiVision(mode, base64);
 
             } catch(e) {
-                if(mode.includes('TA')) taBox.innerHTML += `<div class="msg ai">⚠️ 截圖失敗，請按「分享」。</div>`;
+                if(mode.includes('TA')) taBox.innerHTML += `<div class="msg ai">⚠️ 截圖失敗，請記得按「分享」喔。</div>`;
             }
         }
 
-        // --- Gemini API (文字版) ---
+        // --- Gemini API (Text) ---
         async function callGeminiText(userText) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
             
-            const prompt = `你是一位專業的 Scratch 程式助教。學生問：${userText}。請用繁體中文簡短回答，引導學生思考，不要直接給完整程式碼。`;
+            // ★ AI 人設：友善、鼓勵、不說教 ★
+            const prompt = `你是 Scratch 魔法導師。對象是小學高年級。學生問：${userText}。請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。不要用疊字。`;
 
             try {
                 const res = await fetch(url, {
@@ -426,21 +430,33 @@
                 taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } catch(e) {
-                taBox.innerHTML += `<div class="msg ai">連線錯誤。</div>`;
+                taBox.innerHTML += `<div class="msg ai">魔法連線中斷了...請檢查網路。</div>`;
             }
         }
 
-        // --- Gemini API (視覺版) ---
+        // --- Gemini API (Vision) ---
         async function callGeminiVision(mode, image64) {
             const cleanBase64 = image64.split(',')[1];
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
 
             let systemPrompt = "";
-            if (mode === 'TA_STRESSED') {
-                systemPrompt = `你是一位 Scratch 助教。學生剛剛經歷挫折，請用"極度溫柔"的語氣。請看截圖(忽略左右側，專注中間積木區)，檢查跳躍貓咪任務(空白鍵->Y+100->等待->Y-100)是否有錯？給出一個簡單建議即可。`;
+            if (mode.startsWith('TA_STRESSED')) {
+                const reason = mode.split('_')[2]; 
+                let context = "";
+                if(reason === 'MOUSE') context = "學生剛剛因為滑鼠操作太急而感到挫折。";
+                if(reason === 'KEY') context = "學生剛剛因為鍵盤敲擊太快而感到焦慮。";
+                if(reason === 'FACE') context = "學生的表情看起來很困擾。";
+                
+                systemPrompt = `
+                你是 Scratch 魔法導師。對象是小學高年級。
+                **${context} 暖心夥伴已經安撫過他了。**
+                請用"非常溫柔、有耐心"的語氣。不要用疊字。
+                請看截圖(忽略左右側，專注中間積木區)，檢查跳跳貓任務(空白鍵->Y+100->等待->Y-100)是否有錯？
+                給出一個明確的提示即可，字數不用多。
+                `;
             } else {
-                systemPrompt = `你是一位 Scratch 助教。請看截圖(專注中間積木區)，檢查程式邏輯是否符合任務(跳躍貓咪)。請指出問題並給予提示。`;
+                systemPrompt = `你是 Scratch 魔法導師。對象是小學高年級。請看截圖(專注中間積木區)，檢查程式邏輯是否符合跳跳貓任務。請用簡單清楚的中文指出問題，並給予鼓勵。`;
             }
 
             try {
@@ -461,7 +477,7 @@
                 taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } catch(e) {
-                taBox.innerHTML += `<div class="msg ai">連線錯誤。</div>`;
+                taBox.innerHTML += `<div class="msg ai">魔法連線失敗。</div>`;
             }
         }
     </script>
