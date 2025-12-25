@@ -2,312 +2,362 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>第一年計畫：Scratch 嵌入與視覺 AI 系統 (V4 無遮擋版)</title>
+    <title>第一年計畫：情緒感知與同理心 AI 學習系統</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
-        :root { --primary: #4C97FF; --bg: #e0e0e0; }
-        body { margin: 0; display: flex; height: 100vh; font-family: "Helvetica Neue", Arial, sans-serif; background: var(--bg); overflow: hidden; }
+        :root { --primary: #4C97FF; --warn: #FFAB19; --danger: #FF5555; --bg: #f0f2f5; }
+        body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); overflow: hidden; }
 
-        /* 左側監控與 AI 面板 */
+        /* 左側：儀表板 */
         .sidebar { 
             width: 320px; background: white; padding: 15px; 
-            display: flex; flex-direction: column; border-right: 1px solid #ccc; z-index: 10;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; border-right: 1px solid #ccc; 
+            box-shadow: 2px 0 15px rgba(0,0,0,0.05); z-index: 20;
         }
-        .cam-box { 
-            width: 100%; height: 180px; background: #000; 
-            border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 3px solid #ff6b6b;
-            position: relative;
+
+        /* 1. 任務卡片 */
+        .task-card {
+            background: #E9F1FC; border-left: 5px solid var(--primary);
+            padding: 12px; border-radius: 5px; margin-bottom: 15px;
+            font-size: 0.9em; line-height: 1.6;
+        }
+
+        /* 2. 攝影機與情緒 */
+        .cam-wrapper {
+            position: relative; width: 100%; height: 180px; 
+            background: #000; border-radius: 8px; overflow: hidden; 
+            border: 2px solid #ddd; margin-bottom: 10px;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        
-        .status-box { padding: 10px; background: #f5f5f5; border-radius: 8px; font-size: 0.9em; margin-bottom: 10px; }
-        .stress-bar-bg { height: 8px; background: #ddd; border-radius: 4px; margin-top: 5px; overflow:hidden; }
-        .stress-fill { height: 100%; width: 0%; background: #ff4757; transition: width 0.5s; }
-
-        .chat-area { flex: 1; display: flex; flex-direction: column; border: 1px solid #eee; border-radius: 8px; overflow: hidden; background: #fcfcfc; }
-        .chat-header { background: var(--primary); color: white; padding: 10px; font-weight: bold; font-size: 0.9em; display: flex; justify-content: space-between; align-items: center; }
-        .chat-msgs { flex: 1; overflow-y: auto; padding: 10px; font-size: 0.9em; }
-        .msg { margin-bottom: 10px; padding: 10px; border-radius: 12px; max-width: 90%; line-height: 1.5; word-wrap: break-word; }
-        .msg.ai { background: #E6F7FF; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #B3E0FF; }
-        .msg.user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        
-        .screenshot-btn {
-            background: var(--primary); color: white; border: none; padding: 12px; 
-            border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            transition: 0.2s; font-size: 1em;
+        .face-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: rgba(0,0,0,0.6); color: white; padding: 5px;
+            text-align: center; font-size: 0.8em;
         }
-        .screenshot-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-        .screenshot-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
 
-        /* 右側：Scratch 嵌入容器 */
-        .scratch-container { flex: 1; position: relative; background: white; }
-        
-        /* iframe 設定 */
+        /* 3. 壓力監測儀 */
+        .monitor-panel {
+            background: #fff; border: 1px solid #eee; border-radius: 8px;
+            padding: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .indicator-row { display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 5px; color: #555; }
+        .stress-bar-bg { height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }
+        .stress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.5s, background 0.5s; }
+
+        /* 右側：Scratch 容器 */
+        .main-area { flex: 1; position: relative; background: white; }
         iframe { width: 100%; height: 100%; border: none; }
 
-        /* 隱藏截圖元件 */
-        #capture-video { display: none; }
-        #capture-canvas { display: none; }
+        /* AI 安撫視窗 (情緒介入) */
+        .empathy-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 9999; display: none;
+            justify-content: center; align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .empathy-box {
+            background: white; width: 500px; max-width: 90%; 
+            border-radius: 15px; overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
+            animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes slideIn { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;} }
 
-        /* 彈窗 */
-        .overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.6); z-index: 999; display: none; 
-            justify-content: center; align-items: center; 
+        .ai-avatar { font-size: 3em; margin-right: 15px; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 100% {transform: translateY(0);} 50% {transform: translateY(-10px);} }
+
+        .empathy-header {
+            background: #FFFAF0; padding: 20px; border-bottom: 1px solid #eee;
+            display: flex; align-items: center;
         }
-        .modal { 
-            background: white; width: 420px; padding: 30px; 
-            border-radius: 12px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.4); 
+        .empathy-content { padding: 20px; font-size: 1em; color: #444; line-height: 1.6; min-height: 100px; }
+        
+        .empathy-actions {
+            padding: 15px; background: #fafafa; display: flex; gap: 10px; justify-content: flex-end;
+            border-top: 1px solid #eee;
         }
+        .btn-comfort {
+            padding: 10px 20px; border: none; border-radius: 20px; cursor: pointer; font-weight: bold;
+            transition: 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #357abd; }
+        .btn-outline { background: white; border: 1px solid #ccc; color: #555; }
+
+        /* 截圖相關隱藏元件 */
+        #capture-video, #capture-canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="ai-modal" class="overlay">
-        <div class="modal">
-            <h2 style="color: #FFAB19; margin-top:0;">🐱 需要幫忙嗎？</h2>
-            <p style="color:#555;">AI 偵測到您似乎有點焦慮。讓我幫您看看現在的積木程式，給一點提示好嗎？</p>
-            
-            <div style="font-size: 0.85em; color: #444; background: #eef; padding: 12px; border-radius: 6px; margin: 20px 0; text-align: left; border-left: 4px solid var(--primary);">
-                <strong>🔔 操作步驟：</strong><br>
-                1. 點擊下方按鈕。<br>
-                2. 瀏覽器彈窗時，請選擇 <strong>「目前的標籤頁 (This Tab)」</strong>。<br>
-                3. 點擊「分享」。
+    <div id="ai-modal" class="empathy-modal">
+        <div class="empathy-box">
+            <div class="empathy-header">
+                <div class="ai-avatar">🍵</div> <div>
+                    <h2 style="margin:0; color:#5d4037;">休息一下吧？</h2>
+                    <small style="color:#888;">AI 學習夥伴</small>
+                </div>
             </div>
-            
-            <button class="screenshot-btn" style="width:100%" onclick="captureScreenAndAnalyze('auto')">
-                📸 好，截圖分析積木
-            </button>
-            <button class="screenshot-btn" style="width:100%; background:#ccc; color:#555; margin-top:10px;" onclick="closeModal()">
-                我自己再試試
-            </button>
+            <div class="empathy-content" id="ai-message">
+                偵測到您似乎有些焦慮。學習程式有時候真的很令人挫折，我完全理解這種感覺。<br><br>
+                深呼吸，我們不急。您碰到了什麼困難嗎？我可以幫您看看。
+            </div>
+            <div class="empathy-actions">
+                <button class="btn-comfort btn-primary" onclick="captureScreenAndComfort()">
+                    📸 讓 AI 看看我的積木，幫我找問題
+                </button>
+                <button class="btn-comfort btn-outline" onclick="closeModal()">
+                    沒事，我再試試看
+                </button>
+            </div>
         </div>
     </div>
 
     <div class="sidebar">
-        <h3 style="margin:0 0 15px 0; color:var(--primary); display:flex; align-items:center; gap:10px;">
-            <span>🧩</span> Scratch AI 實驗室
-        </h3>
+        <h3 style="margin:0 0 15px 0; color:#333;">🎓 學習系統</h3>
         
-        <div class="cam-box">
-            <div style="position:absolute; top:5px; left:5px; color:white; font-size:0.8em; background:rgba(0,0,0,0.5); padding:2px 5px; border-radius:4px;">Face Monitor</div>
+        <div class="task-card">
+            <strong>🎯 本週目標：跳躍貓咪</strong><br>
+            1. 事件：按下空白鍵<br>
+            2. 動作：Y 改變 100<br>
+            3. 控制：等待 0.5 秒<br>
+            4. 動作：Y 改變 -100
+        </div>
+
+        <div class="cam-wrapper">
             <video id="video" autoplay muted playsinline></video>
-        </div>
-        <div class="status-box">
-            <div style="display:flex; justify-content:space-between;">
-                <span>情緒狀態:</span>
-                <strong id="emo-val" style="color:#e67e22">偵測中...</strong>
-            </div>
-            <div style="margin-top:5px; font-size:0.8em; color:#888;">AI 介入指標 (焦慮/挫折)</div>
-            <div class="stress-bar-bg"><div id="stress-bar" class="stress-fill"></div></div>
-        </div>
-
-        <div class="chat-area">
-            <div class="chat-header">
-                <span>🤖 AI 視覺助教</span>
-                <span style="font-size:0.8em; opacity:0.8;">Gemini 1.5 Flash</span>
-            </div>
-            <div class="chat-msgs" id="chat-box">
-                <div class="msg ai">
-                    嗨！右邊是 Scratch 編輯器。<br>
-                    如果你卡關了，我會主動跳出來幫你看畫面喔！<br>
-                    (請記得：不要讓其它視窗擋住 Scratch 積木區喔)
-                </div>
+            <div class="face-overlay">
+                情緒: <span id="emo-label">初始化中...</span>
             </div>
         </div>
 
-        <button id="manual-btn" class="screenshot-btn" onclick="captureScreenAndAnalyze('manual')">
-            <span>👁️</span> 讓 AI 看畫面給建議
-        </button>
+        <div class="monitor-panel">
+            <div class="indicator-row"><span>😟 負面表情累積</span><span id="score-face">0%</span></div>
+            <div class="indicator-row"><span>🖱️ 操作急躁度</span><span id="score-mouse">0%</span></div>
+            <hr style="border:0; border-top:1px solid #eee; margin:5px 0;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <strong>總體壓力指數</strong>
+                <strong id="total-stress">0%</strong>
+            </div>
+            <div class="stress-bar-bg">
+                <div id="stress-bar" class="stress-fill"></div>
+            </div>
+        </div>
+
+        <div style="font-size:0.8em; color:#888; margin-top:10px;">
+            * 系統將自動偵測您的學習狀態，並在需要時提供協助。
+        </div>
     </div>
 
-    <div class="scratch-container">
-        <iframe id="scratch-frame" 
-            src="https://stretch3.github.io/" 
-            allow="autoplay; camera; microphone; display-capture">
-        </iframe>
+    <div class="main-area">
+        <iframe src="https://stretch3.github.io/" allow="autoplay; camera; microphone; display-capture"></iframe>
     </div>
 
-    <video id="capture-video" autoplay></video>
+    <video id="capture-video"></video>
     <canvas id="capture-canvas"></canvas>
 
     <script>
         // ==========================================
-        // 1. 設定 API Key (Gemini 1.5 Flash)
+        // ★ 設定：請填入您的 API Key
         // ==========================================
-        const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; // ★★★ 請在此填入您的 API Key ★★★
+        const API_KEY = "YOUR_GEMINI_API_KEY"; // ⚠️ 請填入
 
         // ==========================================
-        // 2. 核心技術：繞過 CORS 的截圖大法
+        // 1. 壓力監測演算法 (Stress Algorithm)
         // ==========================================
-        async function captureScreenAndAnalyze(source) {
-            const btn = document.getElementById('manual-btn');
-            const originalText = btn.innerHTML;
+        let state = {
+            faceScore: 0,   // 來自表情
+            mouseScore: 0,  // 來自滑鼠亂動
+            totalStress: 0,
+            isInterventionActive: false,
+            mousePositions: [] // 記錄滑鼠軌跡計算速度
+        };
+
+        // 滑鼠行為監測 (偵測無意義抖動/急躁)
+        document.addEventListener('mousemove', (e) => {
+            const now = Date.now();
+            state.mousePositions.push({x: e.clientX, y: e.clientY, t: now});
             
-            if(source === 'auto') closeModal();
-            
-            // 改變按鈕狀態，但不使用全螢幕遮罩，以免擋住畫面
-            btn.disabled = true;
-            btn.innerHTML = "⏳ 等待畫面授權...";
+            // 只保留最近 1 秒的數據
+            state.mousePositions = state.mousePositions.filter(p => now - p.t < 1000);
 
-            try {
-                // 1. 請求使用者分享螢幕
-                // preferCurrentTab: true 會提示瀏覽器讓使用者選「這個分頁」
-                const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "never" },
-                    audio: false,
-                    preferCurrentTab: true 
-                });
-
-                btn.innerHTML = "📸 正在截取...";
-
-                const videoEl = document.getElementById('capture-video');
-                videoEl.srcObject = stream;
-
-                // 等待影片載入
-                await new Promise((resolve) => videoEl.onloadedmetadata = resolve);
-                videoEl.play();
+            if (state.mousePositions.length > 5) {
+                // 計算移動總距離
+                let dist = 0;
+                for(let i=1; i<state.mousePositions.length; i++) {
+                    const p1 = state.mousePositions[i-1];
+                    const p2 = state.mousePositions[i];
+                    dist += Math.sqrt(Math.pow(p2.x-p1.x, 2) + Math.pow(p2.y-p1.y, 2));
+                }
                 
-                // ★關鍵：等待 0.5 秒。
-                // 因為按下分享瞬間，瀏覽器可能會切換焦點或顯示通知條，等待一下能確保畫面穩定
-                await new Promise(r => setTimeout(r, 500));
-
-                // 2. 畫到 Canvas (截圖)
-                const canvas = document.getElementById('capture-canvas');
-                canvas.width = videoEl.videoWidth;
-                canvas.height = videoEl.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-
-                // 3. 停止分享 (重要！立即切斷)
-                stream.getTracks().forEach(track => track.stop());
-                videoEl.srcObject = null;
-
-                // 4. 取得圖片 (Base64 JPEG)
-                const base64Image = canvas.toDataURL('image/jpeg', 0.7);
-
-                // 5. 呼叫 AI
-                addMsg('user', '📸 (已傳送畫面截圖)');
-                btn.innerHTML = "🤖 AI 分析中...";
-                await callGeminiVision(base64Image);
-
-            } catch (err) {
-                console.error("截圖失敗:", err);
-                if (err.name === 'NotAllowedError') {
-                    addMsg('ai', '⚠️ 您取消了畫面分享，我無法看到您的積木。請再試一次並點選「分享」。');
-                } else {
-                    addMsg('ai', '❌ 截圖發生錯誤：' + err.message);
+                // 如果 1 秒內移動超過 1000 像素 (非常快/亂動)
+                if (dist > 1500) {
+                    state.mouseScore = Math.min(100, state.mouseScore + 2);
                 }
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
             }
-        }
+        });
 
-        // ==========================================
-        // 3. 呼叫 Gemini Vision API
-        // ==========================================
-        async function callGeminiVision(base64Data) {
-            const cleanBase64 = base64Data.split(',')[1];
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+        // 壓力計算迴圈 (每秒更新)
+        setInterval(() => {
+            // 自然衰退 (如果使用者平靜下來，壓力值下降)
+            if (state.mouseScore > 0) state.mouseScore -= 1;
             
-            const prompt = `
-            你是一位親切的 Scratch 程式設計助教。
-            這是一張學生正在操作 Scratch 的螢幕截圖。
-            
-            任務：
-            1. 請專注辨識畫面中的「積木程式區」(通常在中間)。
-            2. 分析學生目前拼出的積木邏輯。
-            3. 如果畫面是空的(沒有積木)，請建議學生：
-               「我看你的程式區還是空的喔！試著從黃色的【事件】積木區拉出【當綠旗被點擊】開始吧！」
-            4. 如果有明顯邏輯錯誤(例如：移動了但沒有迴圈)，請引導他。
-            5. 請用繁體中文回答，語氣要鼓勵學生，字數 100 字內。
-            
-            (注意：這是一張螢幕截圖，請忽略瀏覽器的邊框或其它無關視窗)
-            `;
+            // 權重計算
+            // 表情佔 70%，滑鼠佔 30%
+            state.totalStress = Math.floor((state.faceScore * 0.7) + (state.mouseScore * 0.3));
 
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [
-                                { text: prompt },
-                                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
-                            ]
-                        }]
-                    })
-                });
+            // 更新 UI
+            document.getElementById('score-face').innerText = state.faceScore + "%";
+            document.getElementById('score-mouse').innerText = state.mouseScore + "%";
+            document.getElementById('total-stress').innerText = state.totalStress + "%";
+            
+            const bar = document.getElementById('stress-bar');
+            bar.style.width = state.totalStress + "%";
+            
+            // 變色邏輯
+            if(state.totalStress < 50) bar.style.background = "#4C97FF"; // 藍 (正常)
+            else if(state.totalStress < 80) bar.style.background = "#FFAB19"; // 黃 (注意)
+            else bar.style.background = "#FF5555"; // 紅 (危險)
 
-                const data = await response.json();
-                if(data.candidates && data.candidates[0].content) {
-                    addMsg('ai', data.candidates[0].content.parts[0].text);
-                } else {
-                    addMsg('ai', 'AI 暫時無法辨識，請確認 API Key。');
-                }
-            } catch (e) {
-                addMsg('ai', 'API 連線錯誤: ' + e.message);
+            // ★ 觸發 AI 介入 ★
+            if (state.totalStress > 80 && !state.isInterventionActive) {
+                triggerAIIntervention();
             }
-        }
 
-        function addMsg(role, text) {
-            const box = document.getElementById('chat-box');
-            const div = document.createElement('div');
-            div.className = `msg ${role}`;
-            div.innerHTML = marked.parse(text);
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-        }
+        }, 500);
 
         // ==========================================
-        // 4. 情緒偵測
+        // 2. 臉部情緒偵測 (Face API)
         // ==========================================
-        let stress = 0;
-        function closeModal() { document.getElementById('ai-modal').style.display = 'none'; }
-
-        async function initMonitor() {
-            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+        async function initFace() {
+            const URL = 'https://justadudewhohacks.github.io/face-api.js/models';
             try {
-                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-                await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+                await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
+                await faceapi.nets.faceExpressionNet.loadFromUri(URL);
                 
                 const video = document.getElementById('video');
                 const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
                 video.srcObject = stream;
 
                 setInterval(async () => {
+                    if (state.isInterventionActive) return; // 介入時暫停偵測
+
                     const dets = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
                     if(dets.length) {
                         const exps = dets[0].expressions;
                         const top = Object.keys(exps).reduce((a,b)=>exps[a]>exps[b]?a:b);
                         
-                        const emoMap = {neutral:"平靜", happy:"開心", sad:"沮喪", angry:"生氣", fearful:"焦慮", disgusted:"厭惡"};
-                        document.getElementById('emo-val').innerText = emoMap[top] || top;
-                        
-                        if(['sad','angry','fearful'].includes(top)) stress += 15;
-                        else stress = Math.max(0, stress - 2);
+                        const map = {neutral:"平靜", happy:"開心", sad:"沮喪", angry:"生氣", fearful:"焦慮", disgusted:"厭惡", surprised:"驚訝"};
+                        document.getElementById('emo-label').innerText = map[top] || top;
 
-                        document.getElementById('stress-bar').style.width = Math.min(100, stress) + "%";
-
-                        if(stress > 90) {
-                            stress = 0; 
-                            document.getElementById('ai-modal').style.display = 'flex';
+                        // 判斷負面情緒
+                        if(['sad', 'angry', 'fearful', 'disgusted'].includes(top)) {
+                            state.faceScore = Math.min(100, state.faceScore + 5); // 快速累積
+                        } else if (top === 'happy') {
+                            state.faceScore = Math.max(0, state.faceScore - 10); // 開心則快速消除壓力
+                        } else {
+                            state.faceScore = Math.max(0, state.faceScore - 2); // 平靜則緩慢消除
                         }
                     }
                 }, 1000);
             } catch(e) {
-                console.error("Face API Error:", e);
-                addMsg('ai', '⚠️ 無法啟動攝影機。');
+                console.error(e);
+                document.getElementById('emo-label').innerText = "相機錯誤";
             }
         }
 
-        initMonitor();
+        // ==========================================
+        // 3. AI 介入與安撫 (Gemini Chat)
+        // ==========================================
+        function triggerAIIntervention() {
+            state.isInterventionActive = true;
+            state.faceScore = 50; // 重置部分壓力
+            state.mouseScore = 0;
+            document.getElementById('ai-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('ai-modal').style.display = 'none';
+            // 給予一點冷卻時間
+            setTimeout(() => { state.isInterventionActive = false; }, 5000);
+        }
+
+        // 截圖並尋求 AI 安撫
+        async function captureScreenAndComfort() {
+            const msgBox = document.getElementById('ai-message');
+            msgBox.innerHTML = "⏳ 正在取得您的畫面...<br>(請在彈出視窗中選擇 <strong>「目前的標籤頁」</strong> 並按分享)";
+            
+            try {
+                // 1. 截圖
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: false, preferCurrentTab: true });
+                const videoEl = document.getElementById('capture-video');
+                videoEl.srcObject = stream;
+                await new Promise(r => videoEl.onloadedmetadata = r);
+                videoEl.play();
+                await new Promise(r => setTimeout(r, 500)); // 等畫面穩
+                
+                const canvas = document.getElementById('capture-canvas');
+                canvas.width = videoEl.videoWidth;
+                canvas.height = videoEl.videoHeight;
+                canvas.getContext('2d').drawImage(videoEl, 0, 0);
+                
+                stream.getTracks().forEach(t => t.stop());
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                // 2. 呼叫 Gemini (同理心模式)
+                msgBox.innerHTML = "🤖 AI 正在分析您的程式積木與困難點...<br>(請稍候，我正在思考如何協助您)";
+                await callGeminiEmpathy(base64);
+
+            } catch(e) {
+                console.error(e);
+                msgBox.innerText = "截圖被取消或發生錯誤。沒關係，您可以直接告訴我您遇到了什麼問題。";
+            }
+        }
+
+        async function callGeminiEmpathy(image64) {
+            const cleanBase64 = image64.split(',')[1];
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            
+            const prompt = `
+            你現在是一位「極具同理心」的學習諮商師兼程式助教。
+            系統偵測到學生的情緒壓力指數很高。
+            
+            任務目標：【製作跳躍的貓咪 (空白鍵 -> Y+100 -> 等待 -> Y-100)】。
+            
+            請看這張截圖：
+            1. 首先，請**安撫學生的情緒**。用溫暖的語氣告訴他，卡關是很正常的，深呼吸。
+            2. 接著，看看他的積木哪裡有問題？
+               - 如果是空的，溫柔地建議第一步。
+               - 如果邏輯有錯，不要直接給答案，給予「提示」。
+            3. 請用繁體中文，語氣像朋友一樣。
+            `;
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        contents: [{ parts: [{text: prompt}, {inlineData: {mimeType: "image/jpeg", data: cleanBase64}}] }]
+                    })
+                });
+                const data = await res.json();
+                const reply = data.candidates[0].content.parts[0].text;
+                
+                // 顯示回應
+                document.getElementById('ai-message').innerHTML = marked.parse(reply);
+                
+            } catch(e) {
+                document.getElementById('ai-message').innerText = "AI 連線有點問題，不過別擔心。您可以試著檢查一下「當空白鍵被按下」這個積木喔！";
+            }
+        }
+
+        // 啟動
+        initFace();
+
     </script>
 </body>
 </html>
