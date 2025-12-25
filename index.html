@@ -204,7 +204,7 @@
         // ==========================================
         // ★ 請填入您的 API Key ★
         // ==========================================
-        const API_KEY = "YOUR_GEMINI_API_KEY"; 
+        const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; 
 
         // 系統狀態
         let state = {
@@ -363,7 +363,7 @@
 
         async function callGemini(aiType, image64) {
             const cleanBase64 = image64.split(',')[1];
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             
             // 定義雙 AI 的人設 (Prompt)
             let systemPrompt = "";
