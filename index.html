@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Scratch 實驗室 (記憶升級版)</title>
+    <title>Scratch 實驗室 (記憶修復版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -221,7 +221,7 @@
             clickCount: 0, keyPressCount: 0, mousePositions: [],
             dominantStressor: '',
             empathyChatHistory: [], // 暖心對話歷史
-            taChatHistory: []       // ★★★ 新增：積木大師對話歷史 (含圖片) ★★★
+            taChatHistory: []       // ★★★ 積木大師對話歷史 ★★★
         };
 
         // ==========================================
@@ -426,48 +426,32 @@
         }
 
         // ==========================================
-        // ★★★ 核心修改：整合對話與截圖 (記憶+連線修正) ★★★
+        // ★★★ 核心修改：整合對話與截圖 (記憶+連線+系統指令) ★★★
         // ==========================================
 
-        // 統一的 Gemini 呼叫函式 (負責發送 state.taChatHistory)
         async function sendToGeminiTA() {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
 
-            // 系統提示詞 (永遠放在對話最前面，或每次發送時加入)
-            // 為了讓 API 記得圖片，我們將整個 taChatHistory 送出去
-            
-            // 為了確保角色設定，我們在每次發送時，把 history 包裝一下
-            // 注意：API 限制第一個訊息必須是 user，所以我們把 system prompt 融合在第一個 user 訊息，或是使用 system_instruction (v1beta)
-            // 這裡採用簡單策略：在 history 為空時，插入一個隱藏的 user 提示詞
-            
-            if (state.taChatHistory.length === 0) {
-                 // 這是初始化，不應該發生，因為使用者會先傳文字或圖片
-            }
+            // ★ 系統提示詞：改用 system_instruction 避免佔用對話 User 順序
+            const systemInstruction = {
+                parts: [{ text: `
+                    你是 Scratch 積木大師。對象是小學高年級。
+                    請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。
+                    注意：如果使用者傳送了圖片，那是 Scratch 畫面的「放大裁切」截圖，請專注於檢查程式邏輯是否符合跳跳貓任務(空白鍵->Y+100->等待->Y-100)。
+                `}]
+            };
 
-            // 準備 Prompt 頭部 (System Prompt)
-            const systemInstruction = `
-            你是 Scratch 積木大師。對象是小學高年級。
-            請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。
-            注意：如果使用者傳送了圖片，那是 Scratch 畫面的「放大裁切」截圖，請專注於檢查程式邏輯是否符合跳跳貓任務(空白鍵->Y+100->等待->Y-100)。
-            `;
-
-            // 構建 Payload
-            // 我們把 System Instruction 作為一次性的 user message 放在最前面 (One-shot 設定)，但為了保持對話流暢，
-            // 較好的做法是每次請求都帶上這個 context，或者依賴 Gemini 的長窗口。
-            // 這裡我們把 System Instruction 加在本次請求的 payload 結構中 (透過 system_instruction 參數，如果模型支援)，
-            // 或者簡單地，我們假設 taChatHistory 的第一則已經包含了上下文。
-            
-            // 為了簡化，我們在送出時，臨時在陣列最前面加一個 Role Definition
-            const fullHistory = [
-                { role: 'user', parts: [{ text: systemInstruction }] },
-                ...state.taChatHistory
-            ];
+            // Payload: 分開 system_instruction 與 contents (對話記錄)
+            const payload = {
+                system_instruction: systemInstruction,
+                contents: state.taChatHistory
+            };
 
             try {
                 const res = await fetch(url, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ contents: fullHistory })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 
@@ -486,8 +470,10 @@
                 });
 
             } catch(e) {
-                console.error(e);
+                console.error("Gemini Error:", e);
                 taBox.innerHTML += `<div class="msg ai">連線發生錯誤，請稍後再試。</div>`;
+                // 失敗時，把剛剛的使用者訊息移除，避免卡住
+                state.taChatHistory.pop();
             }
         }
 
@@ -557,7 +543,6 @@
                 }
 
                 // ★★★ 記憶：把「圖片 + 文字」存入歷史 ★★★
-                // Gemini API 支援在一個 user part 中同時放 text 和 inline_data
                 state.taChatHistory.push({
                     role: 'user',
                     parts: [
@@ -578,7 +563,7 @@
                     stream.getTracks().forEach(track => track.stop());
                 }
                 const videoEl = document.getElementById('capture-video');
-                videoEl.srcObject = null; // 斷開連結，讓瀏覽器釋放資源
+                videoEl.srcObject = null; // 斷開連結
             }
         }
     </script>
