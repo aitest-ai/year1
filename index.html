@@ -463,15 +463,33 @@
                 videoEl.play();
                 await new Promise(r => setTimeout(r, 500)); 
 
+                // ★★★ 修正這裡：透過 drawImage 參數進行畫面裁切 (Crop) ★★★
                 const canvas = document.getElementById('capture-canvas');
-                canvas.width = videoEl.videoWidth; canvas.height = videoEl.videoHeight;
-                canvas.getContext('2d').drawImage(videoEl, 0, 0);
+                
+                const w = videoEl.videoWidth;
+                const h = videoEl.videoHeight;
+                
+                // 定義裁切範圍 (針對 Scratch 3.0 介面配置)
+                // 假設：左側工具列約佔 20%，頂部選單佔 10%
+                // 目標：擷取「中間偏左」的積木工作區
+                const cropX = w * 0.20; // 略過左邊工具列
+                const cropY = h * 0.10; // 略過頂部選單
+                const cropW = w * 0.45; // 擷取中間 45% 寬度 (工作區)
+                const cropH = h * 0.80; // 擷取中間 80% 高度
+                
+                canvas.width = cropW;
+                canvas.height = cropH;
+                
+                // 參數：來源, sx, sy, sw, sh, dx, dy, dw, dh
+                canvas.getContext('2d').drawImage(videoEl, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                
                 stream.getTracks().forEach(t => t.stop()); 
                 const base64 = canvas.toDataURL('image/jpeg', 0.7);
 
                 await callGeminiVision(mode, base64);
 
             } catch(e) {
+                console.error(e);
                 if(mode.includes('TA')) taBox.innerHTML += `<div class="msg ai">⚠️ 截圖失敗，請記得按「分享」喔。</div>`;
             }
         }
@@ -514,12 +532,13 @@
                 systemPrompt = `
                 你是 Scratch 積木大師。對象是小學高年級。
                 **${context} 暖心夥伴已經陪他聊過天，他心情好多了，現在要解決問題。**
+                **這是一張「裁切過」的特寫截圖，專注於畫面中央的積木區。**
                 請用"非常溫柔、有耐心"的語氣。
-                請看截圖，查看學生目前的積木程式，檢查跳跳貓任務(空白鍵->Y+100->等待->Y-100)是否有錯？
+                請檢查跳跳貓任務(空白鍵->Y+100->等待->Y-100)是否有錯？
                 給出一個明確的提示即可。
                 `;
             } else {
-                systemPrompt = `你是 Scratch 積木大師。對象是小學高年級。請看截圖，查看學生目前的積木程式，檢查程式邏輯是否符合跳跳貓任務。請用簡單清楚的中文指出問題，並給予鼓勵。`;
+                systemPrompt = `你是 Scratch 積木大師。對象是小學高年級。這是一張放大顯示的積木區截圖。請檢查程式邏輯是否符合跳跳貓任務。請用簡單清楚的中文指出問題，並給予鼓勵。`;
             }
 
             try {
@@ -529,7 +548,6 @@
                         contents: [{
                             parts: [
                                 { text: systemPrompt },
-                                // ★★★ 修正這裡：改成蛇形命名 inline_data 和 mime_type ★★★
                                 { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
                             ]
                         }]
