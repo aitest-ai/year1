@@ -8,13 +8,10 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
-        /* 配色保持活潑但不刺眼 */
+        /* 配色保持活潑 */
         :root { 
-            --primary: #4C97FF; /* Scratch Blue */
-            --accent: #FFAB19;  /* Scratch Orange */
-            --danger: #FF6B6B;  
-            --bg: #F7F9FC;
-            --chat-bg: #ffffff;
+            --primary: #4C97FF; --accent: #FFAB19; --danger: #FF6B6B;  
+            --bg: #F7F9FC; --chat-bg: #ffffff;
         }
         body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif; background: var(--bg); overflow: hidden; }
 
@@ -34,8 +31,8 @@
         .cam-wrapper {
             position: relative; width: 100%; height: 180px; 
             background: #000; border-radius: 12px; overflow: hidden; 
-            border: 3px solid #FFD54F;
-            margin-bottom: 10px; display: flex; justify-content: center; align-items: center;
+            border: 3px solid #FFD54F; margin-bottom: 10px; 
+            display: flex; justify-content: center; align-items: center;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
@@ -74,16 +71,9 @@
         .ta-input-row { display: flex; gap: 10px; align-items: center; }
         .ta-input { flex: 1; padding: 10px 15px; border: 2px solid #ddd; border-radius: 25px; outline: none; height: 40px; box-sizing: border-box; font-size: 1em; }
         .ta-input:focus { border-color: var(--primary); }
-        .btn-icon { 
-            background: #F0F0F0; border: none; width: 42px; height: 42px; 
-            border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; 
-            font-size: 1.4em; flex-shrink: 0; transition: 0.2s;
-        }
+        .btn-icon { background: #F0F0F0; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 1.4em; flex-shrink: 0; transition: 0.2s; }
         .btn-icon:hover { background: #E0E0E0; transform: scale(1.1); }
-        .btn-send { 
-            background: var(--primary); color: white; border: none; padding: 0 25px; 
-            border-radius: 25px; cursor: pointer; font-weight: bold; height: 40px; flex-shrink: 0; font-size: 1em;
-        }
+        .btn-send { background: var(--primary); color: white; border: none; padding: 0 25px; border-radius: 25px; cursor: pointer; font-weight: bold; height: 40px; flex-shrink: 0; font-size: 1em; }
         .btn-send:hover { background: #357abd; transform: translateY(-2px); }
 
         .msg { margin-bottom: 10px; padding: 10px 15px; border-radius: 15px; max-width: 95%; line-height: 1.5; word-wrap: break-word; }
@@ -91,7 +81,9 @@
         .msg.user { background: var(--primary); color: white; align-self: flex-end; border-radius: 15px 15px 2px 15px; }
         .msg.system { background: #FFF3E0; color: #E65100; text-align: center; font-size: 0.9em; border: 1px solid #FFE0B2; align-self: center; width: 90%; border-radius: 10px; }
 
-        /* 暖心 AI 彈窗 */
+        /* ========================
+           暖心 AI 彈窗 (聊天版)
+           ======================== */
         .empathy-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.85); 
@@ -99,24 +91,39 @@
             justify-content: center; align-items: center; backdrop-filter: blur(5px);
         }
         .empathy-box {
-            background: white; width: 480px; max-height: 85vh; 
+            background: white; width: 500px; height: 600px; max-height: 90vh; 
             border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
             box-shadow: 0 20px 60px rgba(76, 151, 255, 0.2); animation: fadeIn 0.4s;
             border: 3px solid #FFD54F;
         }
         @keyframes fadeIn { from {transform: translateY(20px); opacity: 0;} to {transform: translateY(0); opacity: 1;} }
 
-        .empathy-header { background: #FFF8E1; padding: 25px; display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #FFE0B2; flex-shrink: 0; }
-        .avatar-heart { font-size: 3.5em; } 
+        .empathy-header { background: #FFF8E1; padding: 20px; display: flex; align-items: center; gap: 15px; border-bottom: 2px solid #FFE0B2; flex-shrink: 0; }
+        .avatar-heart { font-size: 3em; } 
         
-        .empathy-content { padding: 30px; color: #5D4037; line-height: 1.8; overflow-y: auto; flex: 1; font-size: 1.1em; }
+        /* 聊天記錄區 */
+        .empathy-chat-area { 
+            padding: 20px; flex: 1; overflow-y: auto; background: #fff; 
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .msg.warm { background: #FFF3E0; color: #E65100; align-self: flex-start; border-radius: 15px 15px 15px 2px; }
         
-        .empathy-actions { padding: 20px; background: #fff; border-top: 2px solid #f0f0f0; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
-        .btn-comfort { padding: 15px 20px; border-radius: 30px; border: none; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-warm { background: #FFAB00; color: white; box-shadow: 0 5px 15px rgba(255, 171, 0, 0.3); }
-        .btn-warm:hover { transform: scale(1.02); }
-        .btn-close { background: #F5F5F5; color: #777; }
-        .btn-close:hover { background: #EEEEEE; }
+        /* 底部輸入區 */
+        .empathy-input-area { 
+            padding: 15px; background: #FFFDE7; border-top: 2px solid #FFE0B2; 
+            display: flex; gap: 10px; align-items: center; flex-shrink: 0;
+        }
+        .emp-input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #FFCC80; outline: none; }
+        
+        .empathy-actions { padding: 15px; background: #fff; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; align-items: center; }
+        .btn-handoff { 
+            background: linear-gradient(135deg, #FFAB00, #FF6F00); color: white; 
+            padding: 12px 30px; border-radius: 30px; border: none; cursor: pointer; 
+            font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 10px rgba(255, 111, 0, 0.3);
+            width: 80%; transition: 0.2s;
+        }
+        .btn-handoff:hover { transform: scale(1.02); }
+        .btn-close { background: transparent; color: #888; border: none; cursor: pointer; font-size: 0.9em; text-decoration: underline; }
 
         #capture-video, #capture-canvas { display: none; }
     </style>
@@ -128,16 +135,22 @@
             <div class="empathy-header">
                 <div class="avatar-heart">🧡</div>
                 <div>
-                    <h2 style="margin:0; color:#F57F17; font-size:1.5em;">深呼吸，放鬆一下</h2>
-                    <small style="color:#F9A825; font-size:1em;">我是你的暖心夥伴</small>
+                    <h2 style="margin:0; color:#F57F17; font-size:1.4em;">深呼吸，我在這裡</h2>
+                    <small style="color:#F9A825; font-size:0.9em;">暖心夥伴</small>
                 </div>
             </div>
-            <div class="empathy-content" id="empathy-msg">
-                Loading...
+            
+            <div class="empathy-chat-area" id="empathy-chat">
+                </div>
+
+            <div class="empathy-input-area">
+                <input type="text" id="emp-input" class="emp-input" placeholder="跟我說說怎麼了嗎？" onkeypress="if(event.key==='Enter') sendEmpathyChat()">
+                <button class="btn-send" style="background:#FFB74D" onclick="sendEmpathyChat()">送出</button>
             </div>
+
             <div class="empathy-actions">
-                <button class="btn-comfort btn-warm" onclick="handoverToTA()">📸 請幫我看積木</button>
-                <button class="btn-comfort btn-close" onclick="closeEmpathy()">沒事，我再試試看</button>
+                <button class="btn-handoff" onclick="handoverToTA()">📸 心情好點了，請積木大師幫我看積木</button>
+                <button class="btn-close" onclick="closeEmpathy()">我沒事了，回去試試看</button>
             </div>
         </div>
     </div>
@@ -174,7 +187,7 @@
 
         <div style="font-size:0.85em; color:#888; margin-top:auto; line-height:1.5;">
             * 右下角：<strong>積木大師</strong> (解題)<br>
-            * 壓力大時：<strong>暖心夥伴</strong> (關心)
+            * 壓力大時：<strong>暖心夥伴</strong> (陪你聊天)
         </div>
     </div>
 
@@ -186,7 +199,7 @@
                 <span>🧙‍♂️ 積木大師</span>
             </div>
             <div class="ta-chat-box" id="ta-chat">
-                <div class="msg ai">嗨！我是積木大師。寫程式遇到問題很正常，你可以打字問我，或是按相機讓我看看你的程式，我可以幫忙你喔！</div>
+                <div class="msg ai">嗨！我是積木大師。寫程式遇到問題很正常，你可以打字問我，或是按相機讓我看看你的程式喔！</div>
             </div>
             <div class="ta-input-row">
                 <button class="btn-icon" title="截圖給導師看" onclick="captureAndAnalyze('TA_NORMAL')">📸</button>
@@ -206,11 +219,12 @@
             stress: 0, faceScore: 0, mouseScore: 0, keyScore: 0,
             isInterventionActive: false,
             clickCount: 0, keyPressCount: 0, mousePositions: [],
-            dominantStressor: '' 
+            dominantStressor: '',
+            empathyChatHistory: [] // 記錄暖心對話歷史
         };
 
         // ==========================================
-        // 1. 行為偵測 (滑鼠/鍵盤)
+        // 1. 行為偵測
         // ==========================================
         document.addEventListener('mousemove', (e) => {
             const now = Date.now();
@@ -279,7 +293,7 @@
         }
 
         // ==========================================
-        // 3. 綜合壓力監測 (核心修正)
+        // 3. 綜合壓力監測
         // ==========================================
         function startStressLoop() {
             const video = document.getElementById('video');
@@ -294,7 +308,6 @@
                 if(dets.length > 0) {
                     const exps = dets[0].expressions;
                     const top = Object.keys(exps).reduce((a,b)=>exps[a]>exps[b]?a:b);
-                    // 翻譯 - 不用疊字
                     const map = {neutral:"平靜 🙂", happy:"開心 😄", sad:"難過 😢", angry:"生氣 😠", fearful:"害怕 😨", disgusted:"討厭 😖", surprised:"驚訝 😲"};
                     emoVal.innerText = map[top] || top;
                     emoVal.style.color = "#fff";
@@ -309,7 +322,6 @@
                 
                 updateMetricColor('score-face', state.faceScore);
 
-                // 判斷主因
                 if (state.faceScore >= state.mouseScore && state.faceScore >= state.keyScore) state.dominantStressor = 'FACE';
                 else if (state.mouseScore >= state.keyScore) state.dominantStressor = 'MOUSE';
                 else state.dominantStressor = 'KEY';
@@ -329,30 +341,82 @@
         }
 
         // ==========================================
-        // 4. 精準關懷邏輯 (成熟友善版文案)
+        // 4. 暖心 AI 深度對話邏輯 (升級版)
         // ==========================================
         
         function triggerEmpathyAI(reason) {
             state.isInterventionActive = true;
             state.faceScore = 50; state.mouseScore = 0; state.keyScore = 0;
+            state.empathyChatHistory = []; // 重置對話歷史
             
-            const msgEl = document.getElementById('empathy-msg');
-            let content = "";
+            const chatBox = document.getElementById('empathy-chat');
+            chatBox.innerHTML = ''; // 清空畫面
 
-            if (reason === 'FACE') {
-                content = "你看起來有點困擾，是不是程式卡關了？<br>沒關係，我們先深呼吸，放鬆一下。";
-            } else if (reason === 'MOUSE') {
-                content = "我發現你的滑鼠移動得有點急喔，是不是心裡有點著急？<br>操作太快容易出錯，我們稍微放慢一點節奏。";
-            } else if (reason === 'KEY') {
-                content = "敲鍵盤的力道有點大喔，手會痠的。<br>學習程式遇到困難是很正常的，不用太緊繃。";
-            } else {
-                content = "感覺你現在壓力有點大。<br>我們先休息一下，喝口水，等一下再繼續挑戰！";
-            }
+            // 生成第一句開場白
+            let openingMsg = "";
+            if (reason === 'FACE') openingMsg = "你看起來有點困擾，是不是程式卡關了？";
+            else if (reason === 'MOUSE') openingMsg = "我發現你的滑鼠移動得有點急，是不是心裡有點著急？";
+            else if (reason === 'KEY') openingMsg = "敲鍵盤的力道有點大喔，手會痠的。";
+            else openingMsg = "感覺你現在壓力有點大，我們先休息一下。";
 
-            content += "<br><br>如果你需要幫忙，可以請 **積木大師** 幫你看看程式哪裡有問題喔！";
-            msgEl.innerHTML = content;
-
+            openingMsg += "<br>跟我說說看，發生什麼事了嗎？（你可以打字跟我聊天）";
+            
+            addEmpathyMsg('warm', openingMsg);
             document.getElementById('empathy-modal').style.display = 'flex';
+        }
+
+        function addEmpathyMsg(type, text) {
+            const box = document.getElementById('empathy-chat');
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.innerHTML = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+            
+            // 記錄對話歷史
+            state.empathyChatHistory.push({
+                role: type === 'warm' ? 'model' : 'user',
+                parts: [{ text: text }]
+            });
+        }
+
+        async function sendEmpathyChat() {
+            const input = document.getElementById('emp-input');
+            const val = input.value.trim();
+            if(!val) return;
+            
+            addEmpathyMsg('user', val);
+            input.value = "";
+
+            // 呼叫 Gemini (暖心模式)
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const prompt = `
+            你是一個「暖心夥伴」。使用者是小學高年級學生，目前學習程式遇到挫折，壓力很大。
+            你的任務是：
+            1. **專注於同理與傾聽**：不要急著給程式建議，先聽他發牢騷。
+            2. **語氣**：像朋友一樣溫柔，不用疊字，適量 emoji。
+            3. **目標**：引導他冷靜下來，最後鼓勵他「如果準備好了，可以按下面的按鈕請積木大師幫忙」。
+            `;
+
+            // 將 prompt 加在對話歷史最前面發送 (為了省 token 這裡簡化處理，實際建議用 system instruction)
+            const payload = {
+                contents: [
+                    { role: 'user', parts: [{ text: prompt }] },
+                    ...state.empathyChatHistory
+                ]
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                const reply = data.candidates[0].content.parts[0].text;
+                addEmpathyMsg('warm', marked.parse(reply));
+            } catch(e) {
+                addEmpathyMsg('warm', "網路有點卡卡的，但我還是在這裡陪你喔。");
+            }
         }
 
         function closeEmpathy() {
@@ -365,12 +429,13 @@
             const taBox = document.getElementById('ta-chat');
             taBox.innerHTML += `<div class="msg system">✨ 暖心夥伴已通知積木大師...</div>`;
             
+            // 進行截圖交接
             captureAndAnalyze('TA_STRESSED_' + state.dominantStressor);
             
             setTimeout(() => { state.isInterventionActive = false; }, 5000);
         }
 
-        // --- 聊天與截圖 ---
+        // --- TA 聊天與截圖 ---
         async function sendTextChat() {
             const input = document.getElementById('ta-input');
             const val = input.value.trim();
@@ -411,18 +476,16 @@
             }
         }
 
-        // --- Gemini API (Text) ---
+        // --- Gemini API (Text - TA) ---
         async function callGeminiText(userText) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
             
-            // ★ AI 人設：友善、鼓勵、不說教 ★
-            const prompt = `你是 Scratch 積木大師。對象是小學高年級。學生問：${userText}。請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。不要用疊字。`;
+            const prompt = `你是 Scratch 積木大師。對象是小學高年級。學生問：${userText}。請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。`;
 
             try {
                 const res = await fetch(url, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
                 const data = await res.json();
@@ -430,14 +493,14 @@
                 taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } catch(e) {
-                taBox.innerHTML += `<div class="msg ai">連線中斷了...請檢查網路。</div>`;
+                taBox.innerHTML += `<div class="msg ai">連線中斷了...</div>`;
             }
         }
 
-        // --- Gemini API (Vision) ---
+        // --- Gemini API (Vision - TA) ---
         async function callGeminiVision(mode, image64) {
             const cleanBase64 = image64.split(',')[1];
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
 
             let systemPrompt = "";
@@ -450,10 +513,10 @@
                 
                 systemPrompt = `
                 你是 Scratch 積木大師。對象是小學高年級。
-                **${context} 暖心夥伴已經安撫過他了。**
-                請用"非常溫柔、有耐心"的語氣。不要用疊字。
+                **${context} 暖心夥伴已經陪他聊過天，他心情好多了，現在要解決問題。**
+                請用"非常溫柔、有耐心"的語氣。
                 請看截圖(忽略左右側，專注中間積木區)，檢查跳跳貓任務(空白鍵->Y+100->等待->Y-100)是否有錯？
-                給出一個明確的提示即可，字數不用多。
+                給出一個明確的提示即可。
                 `;
             } else {
                 systemPrompt = `你是 Scratch 積木大師。對象是小學高年級。請看截圖(專注中間積木區)，檢查程式邏輯是否符合跳跳貓任務。請用簡單清楚的中文指出問題，並給予鼓勵。`;
@@ -461,8 +524,7 @@
 
             try {
                 const res = await fetch(url, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         contents: [{
                             parts: [
