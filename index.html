@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Scratch 實驗室 (縮圖加速版)</title>
+    <title>Scratch 實驗室 (卷軸任務版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -15,18 +15,69 @@
         }
         body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif; background: var(--bg); overflow: hidden; }
 
+        /* ========================
+           新增：任務卷軸動畫樣式
+           ======================== */
+        .mission-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7); z-index: 99999;
+            display: flex; justify-content: center; align-items: center;
+            transition: all 1s ease-in-out;
+            pointer-events: none; /* 縮小後讓點擊穿透 */
+        }
+
+        .scroll-paper {
+            background: #FFF8E1; /* 羊皮紙色 */
+            width: 0px; height: 10px; /* 初始關閉 */
+            border: 5px solid #FFB300; /* 金邊 */
+            border-radius: 15px;
+            box-shadow: 0 0 50px rgba(255, 179, 0, 0.6);
+            overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center;
+            transition: all 1s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* 彈跳效果 */
+            position: absolute;
+        }
+
+        /* 展開狀態 */
+        .scroll-paper.open {
+            width: 600px; height: 400px;
+            opacity: 1; pointer-events: auto;
+        }
+
+        /* 縮小收回左上角狀態 */
+        .scroll-paper.minimized {
+            width: 280px; height: 140px;
+            top: 20px; left: 20px; /* 對齊左側 Sidebar 位置 */
+            transform: translate(0, 0) scale(1);
+            border-width: 3px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 50; /* 蓋在 Sidebar 之上 */
+            align-items: flex-start; padding: 15px;
+            text-align: left;
+            background: #FFFDE7;
+        }
+
+        .scroll-content { opacity: 0; transition: opacity 0.5s 0.5s; width: 90%; }
+        .scroll-paper.open .scroll-content { opacity: 1; }
+        .scroll-paper.minimized .scroll-content { opacity: 1; font-size: 0.85em; }
+
+        .scroll-title { font-size: 2em; color: #E65100; margin-bottom: 20px; font-weight: bold; }
+        .scroll-paper.minimized .scroll-title { font-size: 1.1em; margin-bottom: 5px; display: flex; align-items: center; gap:5px;}
+        
+        .scroll-list { list-style: none; padding: 0; font-size: 1.2em; color: #5D4037; line-height: 1.8; text-align: left; display: inline-block; }
+        .scroll-paper.minimized .scroll-list { font-size: 0.9em; line-height: 1.4; }
+
         /* 左側面板 */
         .sidebar { 
             width: 320px; background: white; padding: 15px; 
             display: flex; flex-direction: column; border-right: 2px solid #E0E0E0; 
             z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+            padding-top: 170px; /* 預留空間給縮小的卷軸 */
         }
         
-        .task-card {
-            background: #E3F2FD; border-left: 6px solid var(--primary);
-            padding: 15px; border-radius: 12px; margin-bottom: 15px; font-size: 1em;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
+        /* 舊的 task-card 隱藏，改用卷軸顯示 */
+        .task-card { display: none; } 
 
         .cam-wrapper {
             position: relative; width: 100%; height: 180px; 
@@ -130,6 +181,20 @@
 </head>
 <body>
 
+    <div id="mission-overlay" class="mission-overlay">
+        <div id="scroll-paper" class="scroll-paper">
+            <div class="scroll-content">
+                <div class="scroll-title">📜 今天的挑戰：跳跳貓</div>
+                <ul class="scroll-list">
+                    <li>1. 按下空白鍵</li>
+                    <li>2. 往上跳 (Y + 100)</li>
+                    <li>3. 等待一下 (0.5 秒)</li>
+                    <li>4. 掉下來 (Y - 100)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <div id="empathy-modal" class="empathy-modal">
         <div class="empathy-box">
             <div class="empathy-header">
@@ -157,14 +222,6 @@
 
     <div class="sidebar">
         <h3 style="margin:0 0 10px 0; color:#444;">🧩 Scratch 實驗室</h3>
-        
-        <div class="task-card">
-            <strong>🚀 今天的挑戰：跳跳貓</strong><br>
-            1. 按下空白鍵<br>
-            2. 往上跳 (Y + 100)<br>
-            3. 等一下 (0.5 秒)<br>
-            4. 掉下來 (Y - 100)
-        </div>
 
         <div class="cam-wrapper">
             <video id="video" autoplay muted playsinline></video>
@@ -215,10 +272,14 @@
     <script>
         const API_KEY = "AIzaSyDnVdlB1rjVqZ8HZcKhfmm-yv5Qafv0bCk"; // ★★★ 請務必填入您的 API Key ★★★
         
-        // ★★★ 定義積木大師的系統提示詞 ★★★
+        // ★★★ 修正提示詞：強制 AI 逐步教學，一次只講一點 ★★★
         const TA_SYSTEM_PROMPT = `
         你是 Scratch 積木大師。對象是小學高年級。
-        請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。
+        **核心規則：**
+        1. **禁止一次給出完整答案**：請像剝洋蔥一樣，一次只教一個步驟。
+        2. **一步一步來**：每次回答只能專注於這一步，不要跳到下一步。
+        3. **短回答**：每次回答請控制在 50 字以內，簡單易懂。
+        4. **提問引導**：每講完一個觀念，請用問句結尾，確認學生懂了才繼續。
         注意：如果使用者傳送了圖片，那是 Scratch 畫面的「放大裁切」截圖，請專注於檢查程式邏輯是否符合跳跳貓任務(空白鍵->Y+100->等待->Y-100)。
         `;
 
@@ -228,7 +289,36 @@
             clickCount: 0, keyPressCount: 0, mousePositions: [],
             dominantStressor: '',
             empathyChatHistory: [], 
-            taChatHistory: []       // ★★★ 積木大師對話歷史 ★★★
+            taChatHistory: []       
+        };
+
+        // ==========================================
+        // 0. 開場動畫邏輯
+        // ==========================================
+        window.onload = function() {
+            const scroll = document.getElementById('scroll-paper');
+            const overlay = document.getElementById('mission-overlay');
+            
+            // 1. 展開卷軸
+            setTimeout(() => {
+                scroll.classList.add('open');
+            }, 500);
+
+            // 2. 啟動系統 (在背景進行)
+            initSystem();
+
+            // 3. 停留 5 秒後收起
+            setTimeout(() => {
+                // 移除遮罩背景
+                overlay.style.background = 'rgba(0,0,0,0)';
+                overlay.style.width = '0'; // 避免擋住畫面點擊
+                overlay.style.height = '0';
+                
+                // 卷軸變形飛往左上角
+                scroll.classList.remove('open');
+                scroll.classList.add('minimized');
+                
+            }, 5500); // 0.5s 展開 + 5s 閱讀
         };
 
         // ==========================================
@@ -272,8 +362,6 @@
         // ==========================================
         // 2. 初始化與相機
         // ==========================================
-        window.onload = function() { initSystem(); };
-
         async function initSystem() {
             const video = document.getElementById('video');
             const errorMsg = document.getElementById('cam-error');
@@ -433,7 +521,7 @@
         }
 
         // ==========================================
-        // ★★★ 核心修改：縮圖、合併指令、記憶 ★★★
+        // ★★★ 積木大師 AI 邏輯 ★★★
         // ==========================================
 
         async function sendToGeminiTA() {
@@ -464,8 +552,7 @@
 
             } catch(e) {
                 console.error("Gemini Connection Error:", e);
-                // 顯示詳細錯誤，方便除錯
-                taBox.innerHTML += `<div class="msg ai">連線錯誤: ${e.message}</div>`;
+                taBox.innerHTML += `<div class="msg ai">連線發生錯誤，請稍後再試。</div>`;
                 state.taChatHistory.pop();
             }
         }
@@ -516,7 +603,7 @@
                 videoEl.play();
                 await new Promise(r => setTimeout(r, 500)); 
 
-                // --- 裁切 + 縮圖邏輯 (Fix Payload Size) ---
+                // --- 裁切 + 縮圖邏輯 ---
                 const canvas = document.getElementById('capture-canvas');
                 const w = videoEl.videoWidth;
                 const h = videoEl.videoHeight;
@@ -526,7 +613,7 @@
                 const cropW = w * 0.45; 
                 const cropH = h * 0.80; 
 
-                // ★★★ 強制縮小到寬度 800px 以內 ★★★
+                // 強制縮小到寬度 800px 以內
                 let finalW = cropW;
                 let finalH = cropH;
                 if (finalW > 800) {
@@ -539,19 +626,17 @@
                 canvas.height = finalH;
                 
                 const ctx = canvas.getContext('2d');
-                // 參數: 來源, 來源X, 來源Y, 來源寬, 來源高, 目標X, 目標Y, 目標寬, 目標高
                 ctx.drawImage(videoEl, cropX, cropY, cropW, cropH, 0, 0, finalW, finalH);
                 
                 const base64 = canvas.toDataURL('image/jpeg', 0.7);
                 const cleanBase64 = base64.split(',')[1];
 
-                let userPrompt = "這是我目前的程式積木，請幫我檢查。";
+                let userPrompt = "這是我目前的程式積木，請一步一步教我，一次只講一個觀念。";
                 if (mode.startsWith('TA_STRESSED')) {
                     const reason = mode.split('_')[2]; 
-                    userPrompt = `(暖心模式啟動：學生剛剛因為 ${reason} 感到挫折) 請溫柔地幫我看看這張截圖裡的程式積木哪裡有問題？`;
+                    userPrompt = `(暖心模式啟動：學生剛剛因為 ${reason} 感到挫折) 請非常溫柔地幫我看看，一次只改一個地方就好。`;
                 }
 
-                // 如果是第一則訊息，合併系統提示詞
                 if (state.taChatHistory.length === 0) {
                     userPrompt = TA_SYSTEM_PROMPT + "\n\n" + userPrompt;
                 }
