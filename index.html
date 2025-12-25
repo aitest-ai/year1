@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>第一年：情緒偵測與積木程式學習系統</title>
+    <title>第一年計畫：Scratch 3.0 風格 AI 學習系統</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     
@@ -13,375 +13,378 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
-        /* UI 風格設定 */
-        :root { 
-            --bg-color: #f0f2f5; /* 積木版改用亮色系，比較像 Scratch 風格 */
-            --panel-bg: #ffffff; 
-            --accent: #4c97ff; /* Scratch Motion Blue */
-            --control: #ffbf00; /* Scratch Control Yellow */
-            --events: #ffab19; 
-            --text: #333; 
-            --border: #ddd; 
-        }
-        @font-face {
-            font-family: 'Iansui';
-            src: url('https://cdn.jsdelivr.net/fontsource/fonts/iansui@latest/chinese-traditional-400-normal.woff2') format('woff2');
+        /* Scratch 3.0 風格定義 */
+        :root {
+            --scratch-bg: #F9F9F9;
+            --scratch-ui-bg: #E9F1FC;
+            --motion-color: #4C97FF;
+            --control-color: #FFAB19;
+            --events-color: #FFBF00;
+            --looks-color: #9966FF;
+            --stage-border: #E0E0E0;
         }
 
-        body { 
-            background: var(--bg-color); 
-            color: var(--text); 
-            font-family: 'Iansui','Microsoft JhengHei', sans-serif; 
-            margin: 0; 
-            display: flex; 
-            height: 100vh; 
-            overflow: hidden; 
+        body { margin: 0; display: flex; height: 100vh; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; background: var(--scratch-ui-bg); overflow: hidden; }
+
+        /* 左側：情緒偵測與任務 */
+        .sidebar {
+            width: 260px;
+            background: #fff;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            z-index: 10;
         }
-        
-        /* 左側偵測面板 */
-        .panel-left { 
-            width: 280px; 
-            background: #2d3e50; /* 深色側邊欄 */
-            color: white;
-            padding: 15px; 
-            display: flex; 
-            flex-direction: column; 
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-        }
-        .header { color: var(--accent); font-size: 1.2em; font-weight: bold; margin-bottom: 15px; }
-        .cam-box { 
-            width: 100%; height: 180px; background: #000; 
-            border: 3px solid var(--accent); border-radius: 10px; 
-            overflow: hidden; margin-bottom: 10px;
+        .cam-container {
+            width: 100%; height: 180px; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 3px solid #FF6666;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        .status-box { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; font-size: 0.9em; }
-        
-        .stress-bar-bg { height: 8px; background: #555; margin-top: 5px; border-radius: 4px; overflow:hidden; }
-        .stress-bar { height: 100%; width: 0%; background: #ff5555; transition: width 0.5s; }
+        .stress-meter { height: 6px; background: #eee; border-radius: 3px; margin-top: 5px; overflow: hidden; }
+        .stress-fill { height: 100%; width: 0%; background: #FF6666; transition: width 0.5s; }
 
-        /* 右側主操作區 */
-        .panel-right { flex: 1; display: flex; flex-direction: column; padding: 10px; overflow: hidden; }
-        
-        /* 積木工作區容器 */
+        /* 中間：積木工作區 */
+        .workspace-area {
+            flex: 1;
+            position: relative;
+        }
         #blocklyDiv {
-            height: 60%; 
-            width: 100%; 
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        }
+
+        /* 右側：舞台與 AI */
+        .stage-area {
+            width: 350px;
+            background: #fff;
+            border-left: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        /* 模擬舞台 */
+        .stage {
+            width: 100%;
+            height: 250px; /* 4:3 */
+            background: #fff;
+            border: 2px solid var(--stage-border);
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+            background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .sprite {
+            font-size: 50px;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.5s;
         }
 
-        /* 底部 AI 聊天室 */
-        #chat-panel { 
-            height: 35%; 
-            margin-top: 10px;
-            border: 1px solid var(--border); 
-            background: white; 
+        /* AI 對話框 */
+        .chat-box {
+            flex: 1;
+            border: 1px solid #ddd;
             border-radius: 8px;
-            display: flex; 
-            flex-direction: column; 
-            padding: 10px; 
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            background: #fdfdfd;
         }
-        #chat-msgs { flex: 1; overflow-y: auto; margin-bottom: 10px; font-size: 1em; background: #f9f9f9; padding:10px; border-radius:4px; }
-        .msg { padding: 8px 12px; margin-bottom: 8px; border-radius: 15px; max-width: 85%; line-height: 1.4; }
-        .msg.ai { color: #333; background: #e1f5fe; border-bottom-left-radius: 2px; align-self: flex-start; }
-        .msg.user { color: white; background: var(--accent); border-bottom-right-radius: 2px; align-self: flex-end; margin-left: auto; }
-
-        .btn-action { background: var(--accent); color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 20px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        .btn-action:hover { background: #357abd; }
-
-        /* 漸進式回饋彈窗 */
-        .hint-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.6); z-index: 9999; display: none; 
-            justify-content: center; align-items: center; 
+        .chat-history {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 0.9em;
         }
-        .hint-box { 
-            background: white; width: 450px; padding: 30px; 
-            border-radius: 15px; text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        .ai-msg { background: #E6F7FF; padding: 8px; border-radius: 8px; margin-bottom: 5px; color: #333; }
+        .user-msg { background: var(--motion-color); color: white; padding: 8px; border-radius: 8px; margin-bottom: 5px; align-self: flex-end; text-align: right; }
+        .chat-input-area {
+            display: flex; padding: 5px; border-top: 1px solid #eee;
         }
-        @keyframes popIn { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+        input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
         
-        .cat-avatar { font-size: 50px; margin-bottom: 10px; display: block; }
+        /* 彈窗樣式 */
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 999; display: none;
+            justify-content: center; align-items: center;
+        }
+        .modal {
+            background: white; width: 400px; padding: 20px; border-radius: 12px;
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .btn {
+            background: var(--motion-color); color: white; border: none;
+            padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; margin: 5px;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-secondary { background: #999; }
     </style>
 </head>
 <body>
 
-    <div id="hint-overlay" class="hint-overlay">
-        <div class="hint-box">
-            <span class="cat-avatar">🐱</span>
-            <h2 style="color:#333; margin:0 0 10px 0;">遇到困難了嗎？</h2>
-            <p style="color:#666;">AI 偵測到您似乎有點焦慮，需要我看看您的積木並給點提示嗎？</p>
-            
-            <div id="hint-content" style="text-align: left; background: #fff3cd; padding: 15px; margin: 15px 0; border-radius: 8px; color: #856404; font-size:0.95em;">
-                (點擊下方按鈕，AI 將分析您的積木...)
+    <div id="ai-overlay" class="overlay">
+        <div class="modal">
+            <h2 style="color:#FFAB19;">🐱 遇到困難了嗎？</h2>
+            <p>偵測到您似乎有些焦慮。AI 助教可以幫您檢查目前的積木，給一點提示喔！</p>
+            <div id="hint-text" style="background:#f0f0f0; padding:10px; margin:10px 0; border-radius:5px; text-align:left; font-size:0.9em; color:#555;">
+                (點擊下方按鈕，AI 將讀取您的積木結構...)
             </div>
-            
-            <div style="display: flex; justify-content: center; gap:15px;">
-                <button class="btn-action" onclick="getAIHint()">🔍 幫我看積木給提示</button>
-                <button class="btn-action" style="background:#aaa;" onclick="closeHint()">❌ 我自己再試試</button>
-            </div>
+            <button class="btn" onclick="askAIForHelp()">🔍 幫我看積木給建議</button>
+            <button class="btn btn-secondary" onclick="closeOverlay()">再試試看</button>
         </div>
     </div>
 
-    <div class="panel-left">
-        <div class="header">Scratch 學習系統</div>
-        <div class="cam-box"><video id="video" autoplay muted playsinline></video></div>
+    <div class="sidebar">
+        <h3 style="color:var(--motion-color); margin:0 0 10px 0;">Scratch AI 實驗室</h3>
         
-        <div class="status-box">
-            <div>情緒: <span id="emo-val" style="color:#ffab19; font-weight:bold;">偵測中...</span></div>
-            <div style="margin-top:10px; font-size:0.8em; opacity:0.8;">焦慮指數 (AI 觸發)</div>
-            <div class="stress-bar-bg"><div id="stress-bar" class="stress-bar"></div></div>
+        <div class="cam-container"><video id="video" autoplay muted playsinline></video></div>
+        <div style="font-size:0.8em; color:#666;">
+            情緒狀態: <span id="emo-label" style="font-weight:bold; color:var(--control-color)">偵測中...</span>
+            <div class="stress-meter"><div id="stress-bar" class="stress-fill"></div></div>
         </div>
 
-        <div style="margin-top:auto; font-size:0.8em; color:#ccc;">
-            <p>📋 任務目標：<br>使用「重複」積木讓貓咪走 10 步。</p>
+        <hr style="border:0; border-top:1px solid #ddd; margin:15px 0;">
+        
+        <div style="background:#FFF9E6; padding:10px; border-radius:5px; border:1px solid #FFE082;">
+            <strong>🎯 本週任務</strong><br>
+            <small>請使用「事件」和「控制」積木，讓貓咪每隔 1 秒轉動一次，重複 10 次。</small>
         </div>
     </div>
 
-    <div class="panel-right">
+    <div class="workspace-area">
         <div id="blocklyDiv"></div>
+    </div>
 
-        <div id="chat-panel">
-            <div style="border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:5px; font-weight:bold; color:#555;">
-                🤖 AI 智慧助教 (Scratch 專家)
+    <div class="stage-area">
+        <div class="stage">
+            <div id="sprite" class="sprite">🐱</div>
+        </div>
+        <button class="btn" style="background:#4CAF50; width:100%; margin-bottom:10px;" onclick="runBlocks()">🏁 執行程式 (Green Flag)</button>
+
+        <div class="chat-box">
+            <div class="chat-history" id="chat-history">
+                <div class="ai-msg">嗨！試著從左邊拖拉積木。我看得懂你拼了什麼喔！</div>
             </div>
-            <div id="chat-msgs">
-                <div class="msg ai">嗨！我是貓咪助教。試著從左邊拖拉積木，如果卡住了，我會主動出來幫你喔！</div>
-            </div>
-            <div style="display:flex; gap:10px;">
-                <input id="chat-input" style="flex:1; border:1px solid #ddd; padding:10px; border-radius:20px; outline:none;" placeholder="問我關於積木的問題..." onkeypress="if(event.key==='Enter') sendChat()">
-                <button class="btn-action" style="padding: 8px 15px;" onclick="sendChat()">發送</button>
+            <div class="chat-input-area">
+                <input id="chat-input" placeholder="問問 AI..." onkeypress="if(event.key==='Enter') sendChat()">
             </div>
         </div>
     </div>
 
     <xml id="toolbox" style="display: none">
-        <category name="動作 (Motion)" colour="230">
+        <category name="動作 (Motion)" colour="#4C97FF">
             <block type="move_steps"></block>
             <block type="turn_right"></block>
         </category>
-        <category name="控制 (Control)" colour="45">
+        <category name="控制 (Control)" colour="#FFAB19">
             <block type="controls_repeat_ext">
                 <value name="TIMES">
-                    <shadow type="math_number">
-                        <field name="NUM">10</field>
-                    </shadow>
+                    <shadow type="math_number"><field name="NUM">10</field></shadow>
                 </value>
             </block>
-            <block type="controls_if"></block>
+            <block type="wait_seconds"></block>
         </category>
-        <category name="運算 (Operators)" colour="120">
+        <category name="事件 (Events)" colour="#FFBF00">
+            <block type="event_whenflagclicked"></block>
+        </category>
+        <category name="運算 (Operators)" colour="#59C059">
             <block type="math_number"></block>
-            <block type="logic_compare"></block>
         </category>
-        <category name="變數 (Variables)" colour="330" custom="VARIABLE"></category>
     </xml>
 
     <script>
-        // ============================================
-        // 核心邏輯
-        // ============================================
+        // ==========================================
+        // 1. 定義 Scratch 風格的自訂積木
+        // ==========================================
+        
+        // 當綠旗被點擊
+        Blockly.Blocks['event_whenflagclicked'] = {
+            init: function() {
+                this.appendDummyInput().appendField("當 🏁 被點擊");
+                this.setNextStatement(true, null);
+                this.setColour("#FFBF00"); // Scratch Event Yellow
+            }
+        };
+        Blockly.Python['event_whenflagclicked'] = function(block) { return ''; };
 
-        // 自定義積木 (模擬 Scratch 的 Move 10 Steps)
+        // 移動 10 點
         Blockly.Blocks['move_steps'] = {
             init: function() {
                 this.appendDummyInput().appendField("移動").appendField(new Blockly.FieldNumber(10), "STEPS").appendField("點");
                 this.setPreviousStatement(true, null);
                 this.setNextStatement(true, null);
-                this.setColour(230);
-                this.setTooltip("讓角色移動");
+                this.setColour("#4C97FF"); // Scratch Motion Blue
             }
         };
-        // 對應的 Python 生成代碼 (讓 AI 讀懂)
-        Blockly.Python['move_steps'] = function(block) {
-            var number_steps = block.getFieldValue('STEPS');
-            return 'sprite.move(' + number_steps + ')\n';
-        };
+        Blockly.Python['move_steps'] = function(block) { return 'move(' + block.getFieldValue('STEPS') + ')\n'; };
 
+        // 右轉
         Blockly.Blocks['turn_right'] = {
             init: function() {
-                this.appendDummyInput().appendField("右轉").appendField(new Blockly.FieldNumber(15), "DEGREES").appendField("度");
+                this.appendDummyInput().appendField("右轉 ↻").appendField(new Blockly.FieldNumber(15), "DEG").appendField("度");
                 this.setPreviousStatement(true, null);
                 this.setNextStatement(true, null);
-                this.setColour(230);
+                this.setColour("#4C97FF");
             }
         };
-        Blockly.Python['turn_right'] = function(block) {
-            var deg = block.getFieldValue('DEGREES');
-            return 'sprite.turn(' + deg + ')\n';
-        };
+        Blockly.Python['turn_right'] = function(block) { return 'turn(' + block.getFieldValue('DEG') + ')\n'; };
 
-        // 初始化 Blockly
-        var workspace = Blockly.inject('blocklyDiv', {
-            media: 'https://unpkg.com/blockly/media/',
+        // 等待
+        Blockly.Blocks['wait_seconds'] = {
+            init: function() {
+                this.appendDummyInput().appendField("等待").appendField(new Blockly.FieldNumber(1), "SEC").appendField("秒");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour("#FFAB19"); // Scratch Control Orange
+            }
+        };
+        Blockly.Python['wait_seconds'] = function(block) { return 'wait(' + block.getFieldValue('SEC') + ')\n'; };
+
+        // ==========================================
+        // 2. 初始化 Blockly (啟用 Zelos 渲染器)
+        // ==========================================
+        const workspace = Blockly.inject('blocklyDiv', {
             toolbox: document.getElementById('toolbox'),
-            zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
+            renderer: 'zelos',  // ★ 關鍵：這會讓積木變像 Scratch 3.0
+            zoom: { startScale: 0.8 },
+            grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
             trashcan: true
         });
 
-        // GAS API (用於 AI 對話) - 請替換為您的 GAS URL
+        // 定義 Scratch 3.0 主題顏色
+        const scratchTheme = Blockly.Theme.defineTheme('scratch', {
+            'base': Blockly.Themes.Classic,
+            'blockStyles': {
+                'hat_blocks': { 'colourPrimary': '#FFBF00' },
+                'loop_blocks': { 'colourPrimary': '#FFAB19' }
+            }
+        });
+        workspace.setTheme(scratchTheme);
+
+        // ==========================================
+        // 3. AI 邏輯核心 (GAS API)
+        // ==========================================
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzkAH1B96FAMUhSf-n6ET5x8h8BXtXpxgIApmQraqk39rIZOhgUuOi94zmy1AuZMXAqXg/exec";
 
-        let isFaceLoaded = false;
-        let stressLevel = 0;
-        let hintLevel = 0; // 0=無, 1=抽象提示, 2=具體積木提示
-
-        async function init() {
-            // 初始化 Face API
-            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
-            try {
-                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-                await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
-                isFaceLoaded = true;
-                startVideo();
-            } catch(e) { console.log("FaceAPI Error", e); }
-        }
-
-        async function startVideo() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-            const videoEl = document.getElementById('video');
-            videoEl.srcObject = stream;
-            videoEl.addEventListener('play', () => {
-                setInterval(detectEmotion, 1500); // 稍微放慢偵測頻率
-            });
-        }
-
-        async function detectEmotion() {
-            if(!isFaceLoaded) return;
-            const videoEl = document.getElementById('video');
-            const detections = await faceapi.detectAllFaces(videoEl, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+        async function askAIForHelp() {
+            const hintText = document.getElementById('hint-text');
+            hintText.innerText = "🤖 正在分析您的積木結構...";
             
-            if(detections.length > 0) {
-                const expressions = detections[0].expressions;
-                const topEmo = Object.keys(expressions).reduce((a, b) => expressions[a] > expressions[b] ? a : b);
-                
-                // 翻譯情緒
-                const emoMap = { neutral:"平靜", happy:"開心", sad:"沮喪", angry:"生氣", fearful:"焦慮", disgusted:"厭惡", surprised:"驚訝" };
-                document.getElementById('emo-val').innerText = emoMap[topEmo] || topEmo;
-
-                // 壓力邏輯
-                if(['sad', 'angry', 'fearful', 'disgusted'].includes(topEmo)) {
-                    stressLevel += 15; // 累積較快
-                } else {
-                    stressLevel = Math.max(0, stressLevel - 5);
-                }
-                
-                updateStressBar();
-            }
-        }
-
-        function updateStressBar() {
-            const bar = document.getElementById('stress-bar');
-            bar.style.width = Math.min(100, stressLevel) + "%";
-            
-            // 觸發閾值
-            if(stressLevel >= 80) {
-                stressLevel = 0; // 重置
-                showHintOverlay();
-            }
-        }
-
-        function showHintOverlay() {
-            document.getElementById('hint-overlay').style.display = 'flex';
-            document.getElementById('hint-content').innerText = "(AI 準備讀取您的積木結構...)";
-        }
-
-        function closeHint() {
-            document.getElementById('hint-overlay').style.display = 'none';
-        }
-
-        // 關鍵功能：讓 AI 看積木並給提示
-        async function getAIHint() {
-            const hintBox = document.getElementById('hint-content');
-            hintBox.innerText = "🤖 正在分析積木邏輯...";
-            
-            // 1. 將積木轉成 Python 代碼 (這是為了讓 AI 讀懂邏輯，不是給學生看)
+            // ★★★ 核心技術：把積木轉成邏輯代碼 ★★★
             const codeLogic = Blockly.Python.workspaceToCode(workspace);
-            console.log("Generated Logic:", codeLogic);
+            console.log("Extracted Code:", codeLogic); // 您可以在 Console 看到抽取出的程式碼
 
-            // 2. 構建 Prompt
+            // 建構 Prompt
             const prompt = `
-            你是一個 Scratch 程式設計老師。
-            現在學生正在嘗試解決這個任務：[讓貓咪重複移動 10 次]。
+            你是一個 Scratch 程式設計助教。
+            學生的任務是：[讓貓咪每隔1秒轉動一次，重複10次]。
             
-            目前學生寫出的積木邏輯代碼如下：
+            目前學生拼出的積木邏輯如下 (Python格式)：
             \`\`\`python
             ${codeLogic || "目前工作區是空的"}
             \`\`\`
             
-            請根據學生的現狀，給予一個「漸進式」的提示。
-            規則：
-            1. 不要直接給程式碼。
-            2. 請用「積木」的語言（例如：黃色的控制積木、藍色的動作積木）。
-            3. 如果工作區是空的，建議他先找什麼顏色的積木。
-            4. 回答要簡短溫柔，繁體中文。
+            請針對他的進度給予提示。
+            - 如果他是空的，建議他先找「事件」積木。
+            - 如果他沒用迴圈，建議他找橘色的「控制」積木。
+            - 用繁體中文，語氣活潑，不要直接給程式碼。
             `;
 
-            // 3. 呼叫 AI
             try {
-                const res = await fetch(GAS_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        type: 'CALL_GEMINI',
-                        prompt: prompt
-                    })
-                });
+                // 這裡模擬 AI 回應 (實際專案請開啟 fetch)
+                /* const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({type:'CALL_GEMINI', prompt: prompt}) });
+                */
                 
-                // 模擬 AI 回應 (因為 no-cors 拿不到即時回應，這裡用 setTimeout 模擬延遲效果)
-                // 實際串接時，您需要後端支援 CORS 回傳，或使用 Firebase 監聽回應
+                // 模擬延遲與回應
                 setTimeout(() => {
-                    // 這裡是一個模擬的智慧回應，實際上會來自 GAS
-                    let mockResponse = "";
-                    if(!codeLogic) {
-                        mockResponse = "我看你的工作區還是空的。要不要試試看去「控制」分類（黃色），找找看有沒有「重複」的積木？";
-                    } else if (codeLogic.includes("move") && !codeLogic.includes("for")) {
-                        mockResponse = "你已經有移動積木了，很棒！但是這樣只會動一次。試著用黃色的「重複無限次」或「重複10次」積木把移動包起來看看？";
-                    } else {
-                        mockResponse = "看起來結構很不錯喔！試著按執行看看，如果不對，檢查一下移動的步數是否太小？";
-                    }
-                    
-                    hintBox.innerHTML = `<strong>💡 AI 建議：</strong><br>${mockResponse}`;
-                    addMsg('ai', `[主動提示] ${mockResponse}`);
-                }, 2000);
+                    let advice = "";
+                    if(!codeLogic) advice = "看起來工作區空空的呢！所有程式都是從黃色的「當綠旗被點擊」開始的喔，要不要去事件區找找看？";
+                    else if(!codeLogic.includes("for")) advice = "你已經讓貓咪動起來了，很棒！但是要讓它「重複」做這件事，是不是少了一個橘色的積木呢？";
+                    else if(!codeLogic.includes("wait")) advice = "有重複了！但是貓咪轉得太快了，眼睛看不清楚。試著在迴圈裡加一個「等待」積木看看？";
+                    else advice = "看起來很完美！試著按下綠旗執行看看吧！";
 
-            } catch(e) {
-                hintBox.innerText = "連線錯誤，請稍後再試。";
-            }
+                    hintText.innerHTML = `<strong>💡 AI 建議：</strong><br>${advice}`;
+                }, 1500);
+
+            } catch(e) { hintText.innerText = "連線失敗"; }
         }
 
-        // 一般聊天
-        async function sendChat() {
-            const input = document.getElementById('chat-input');
-            const msg = input.value;
-            if(!msg) return;
+        function closeOverlay() { document.getElementById('ai-overlay').style.display = 'none'; }
+
+        // ==========================================
+        // 4. 情緒偵測與模擬執行
+        // ==========================================
+        let stress = 0;
+        async function initFaceAPI() {
+            const URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+            await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
+            await faceapi.nets.faceExpressionNet.loadFromUri(URL);
             
-            addMsg('user', msg);
-            input.value = "";
+            const video = document.getElementById('video');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+            video.srcObject = stream;
             
-            // 這裡同樣可以把目前的積木狀態傳給 AI
-            const currentCode = Blockly.Python.workspaceToCode(workspace);
+            video.addEventListener('play', () => {
+                setInterval(async () => {
+                    const dets = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+                    if(dets.length > 0) {
+                        const exps = dets[0].expressions;
+                        const top = Object.keys(exps).reduce((a, b) => exps[a] > exps[b] ? a : b);
+                        
+                        const map = {neutral:"平靜", happy:"開心", sad:"沮喪", angry:"生氣", fearful:"焦慮"};
+                        document.getElementById('emo-label').innerText = map[top] || top;
+
+                        // 壓力模擬
+                        if(['sad','angry','fearful'].includes(top)) stress += 10;
+                        else stress = Math.max(0, stress - 5);
+                        
+                        document.getElementById('stress-bar').style.width = Math.min(100, stress) + "%";
+
+                        if(stress > 80) {
+                            stress = 0;
+                            document.getElementById('ai-overlay').style.display = 'flex';
+                        }
+                    }
+                }, 1000);
+            });
+        }
+
+        // 簡單的積木執行模擬 (使用 eval, 注意安全但在這個封閉環境可接受)
+        function runBlocks() {
+            const code = Blockly.Python.workspaceToCode(workspace);
+            // 這裡寫一個簡單的直譯器來讓貓咪動
+            // 實際上需要把 Python code 對應到 JS 動畫
+            alert("模擬執行邏輯：\n" + code);
             
-            // 模擬 AI 回應
+            // 簡單動畫演示
+            const sprite = document.getElementById('sprite');
+            let deg = 0;
+            const interval = setInterval(() => {
+                deg += 15;
+                sprite.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+            }, 500);
+            setTimeout(() => clearInterval(interval), 5000);
+        }
+
+        function sendChat() {
+            const v = document.getElementById('chat-input').value;
+            if(!v) return;
+            const h = document.getElementById('chat-history');
+            h.innerHTML += `<div class="user-msg">${v}</div>`;
+            document.getElementById('chat-input').value = "";
+            h.scrollTop = h.scrollHeight;
             setTimeout(() => {
-                addMsg('ai', `收到！關於「${msg}」，你可以參考上面的積木工具箱... (AI 思考中)`);
+                 h.innerHTML += `<div class="ai-msg">關於「${v}」，你可以參考左邊的積木區...</div>`;
+                 h.scrollTop = h.scrollHeight;
             }, 1000);
         }
 
-        function addMsg(role, text) {
-            const box = document.getElementById('chat-msgs');
-            const div = document.createElement('div');
-            div.className = `msg ${role}`;
-            div.innerHTML = marked.parse(text);
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-        }
+        initFaceAPI();
 
-        init();
     </script>
 </body>
 </html>
