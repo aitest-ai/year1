@@ -82,8 +82,8 @@
         .msg.system { background: #FFF3E0; color: #E65100; text-align: center; font-size: 0.9em; border: 1px solid #FFE0B2; align-self: center; width: 90%; border-radius: 10px; }
 
         /* ========================
-           暖心 AI 彈窗 (聊天版)
-           ======================== */
+            暖心 AI 彈窗 (聊天版)
+            ======================== */
         .empathy-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.85); 
@@ -529,7 +529,8 @@
                         contents: [{
                             parts: [
                                 { text: systemPrompt },
-                                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
+                                // ★★★ 修正部分：inlineData 改為 inline_data，mimeType 改為 mime_type ★★★
+                                { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
                             ]
                         }]
                     })
@@ -539,6 +540,7 @@
                 taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } catch(e) {
+                console.error(e);
                 taBox.innerHTML += `<div class="msg ai">連線失敗。</div>`;
             }
         }
