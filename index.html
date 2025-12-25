@@ -39,13 +39,13 @@
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
-        /* 當相機失敗時顯示的重試按鈕 */
+        /* 當相機失敗時顯示的重試按鈕 (備用) */
         .cam-placeholder {
-            position: absolute; text-align: center; color: #fff; display: none; width: 100%;
+            position: absolute; text-align: center; color: #fff; display: none; width: 100%; z-index: 5;
         }
         .retry-btn {
-            background: var(--primary); border: none; padding: 5px 10px; color: white; 
-            border-radius: 4px; cursor: pointer; margin-top: 5px;
+            background: var(--primary); border: none; padding: 8px 15px; color: white; 
+            border-radius: 20px; cursor: pointer; margin-top: 5px; font-weight: bold;
         }
 
         .face-overlay {
@@ -154,7 +154,7 @@
             <video id="video" autoplay muted playsinline></video>
             
             <div id="cam-error" class="cam-placeholder">
-                ⚠️ 無法自動啟動<br>
+                ⚠️ 相機未啟動<br>
                 <button class="retry-btn" onclick="initSystem()">點擊啟用相機</button>
             </div>
 
@@ -222,7 +222,7 @@
                 errorMsg.style.display = 'none';
                 emoVal.innerText = "請求相機中...";
 
-                // 請求相機權限 (使用最標準的 {video: true})
+                // ★ 關鍵修正：改用 { video: true } 而非 { video: {} }
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
                 
@@ -236,7 +236,7 @@
 
             } catch(e) {
                 console.error("Camera Init Failed:", e);
-                // 如果失敗，顯示手動按鈕
+                // 只有在失敗時，才顯示手動按鈕
                 errorMsg.style.display = 'block';
                 emoVal.innerText = "啟動失敗";
                 
