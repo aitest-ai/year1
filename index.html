@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>第一年計畫：雙 AI 情感運算學習系統 (V8 相機修正版)</title>
+    <title>第一年計畫：雙 AI 情感運算學習系統 (V9 自動啟動版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -18,23 +18,7 @@
         body { margin: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); overflow: hidden; }
 
         /* ========================
-           1. 啟動頁 (解決相機權限的核心)
-           ======================== */
-        #start-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 99999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: white; text-align: center;
-        }
-        .start-btn {
-            padding: 15px 40px; font-size: 1.5em; background: var(--primary); color: white;
-            border: none; border-radius: 50px; cursor: pointer; margin-top: 20px;
-            box-shadow: 0 0 20px rgba(76, 151, 255, 0.5); transition: 0.3s;
-        }
-        .start-btn:hover { transform: scale(1.05); background: #357abd; }
-
-        /* ========================
-           2. 左側：情緒監控與任務
+           左側：情緒監控與任務
            ======================== */
         .sidebar { 
             width: 300px; background: white; padding: 15px; 
@@ -51,8 +35,19 @@
             position: relative; width: 100%; height: 180px; 
             background: #000; border-radius: 8px; overflow: hidden; 
             border: 2px solid #ddd; margin-bottom: 5px;
+            display: flex; justify-content: center; align-items: center;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        
+        /* 當相機失敗時顯示的重試按鈕 */
+        .cam-placeholder {
+            position: absolute; text-align: center; color: #fff; display: none; width: 100%;
+        }
+        .retry-btn {
+            background: var(--primary); border: none; padding: 5px 10px; color: white; 
+            border-radius: 4px; cursor: pointer; margin-top: 5px;
+        }
+
         .face-overlay {
             position: absolute; bottom: 0; left: 0; width: 100%;
             background: rgba(0,0,0,0.6); color: white; padding: 5px;
@@ -68,7 +63,7 @@
         .stress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.5s, background 0.5s; }
 
         /* ========================
-           3. 右側：Scratch 與 助教 AI
+           右側：Scratch 與 助教 AI
            ======================== */
         .main-area { flex: 1; position: relative; display: flex; flex-direction: column; }
         .scratch-frame { flex: 1; width: 100%; border: none; }
@@ -89,7 +84,7 @@
         .msg.user { background: var(--primary); color: white; align-self: flex-end; margin-left: auto; }
 
         /* ========================
-           4. 彈窗：暖心 AI (Empathy)
+           彈窗：暖心 AI (Empathy)
            ======================== */
         .empathy-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -122,12 +117,6 @@
     </style>
 </head>
 <body>
-
-    <div id="start-screen">
-        <h1>👋 歡迎來到 AI 程式設計實驗室</h1>
-        <p>本系統包含情緒偵測與雙 AI 助教功能。<br>請點擊下方按鈕，並允許瀏覽器使用相機。</p>
-        <button class="start-btn" onclick="startSystem()">🚀 啟動系統</button>
-    </div>
 
     <div id="empathy-modal" class="empathy-modal">
         <div class="empathy-box">
@@ -163,7 +152,13 @@
 
         <div class="cam-wrapper">
             <video id="video" autoplay muted playsinline></video>
-            <div class="face-overlay">情緒: <span id="emo-val">等待啟動...</span></div>
+            
+            <div id="cam-error" class="cam-placeholder">
+                ⚠️ 無法自動啟動<br>
+                <button class="retry-btn" onclick="initSystem()">點擊啟用相機</button>
+            </div>
+
+            <div class="face-overlay">情緒: <span id="emo-val">等待...</span></div>
         </div>
 
         <div class="monitor-panel">
@@ -201,12 +196,8 @@
     <canvas id="capture-canvas"></canvas>
 
     <script>
-        // ==========================================
-        // ★ 請填入您的 API Key ★
-        // ==========================================
-        const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; 
+        const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; // ★★★ 請務必填入您的 API Key ★★★
 
-        // 系統狀態
         let state = {
             stress: 0,
             faceScore: 0,
@@ -214,30 +205,44 @@
         };
 
         // ==========================================
-        // 1. 系統啟動 (解決權限問題)
+        // 1. 系統自動啟動 (網頁載入時觸發)
         // ==========================================
-        async function startSystem() {
-            const btn = document.querySelector('.start-btn');
-            btn.innerText = "啟動中...";
-            
+        window.onload = function() {
+            console.log("System Loaded. Attempting to start camera...");
+            initSystem();
+        };
+
+        async function initSystem() {
+            const video = document.getElementById('video');
+            const errorMsg = document.getElementById('cam-error');
+            const emoVal = document.getElementById('emo-val');
+
             try {
-                // 主動請求相機權限 (這是啟動相機的唯一合法方式)
-                const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-                const video = document.getElementById('video');
+                // 隱藏錯誤訊息
+                errorMsg.style.display = 'none';
+                emoVal.innerText = "請求相機中...";
+
+                // 請求相機權限 (使用最標準的 {video: true})
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
                 
                 // 載入模型
+                emoVal.innerText = "載入模型中...";
                 await initFaceAPI();
                 
-                // 隱藏啟動頁
-                document.getElementById('start-screen').style.display = 'none';
-                
-                // 開始壓力監測迴圈
+                // 開始監測
+                emoVal.innerText = "偵測中...";
                 startStressLoop();
 
             } catch(e) {
-                alert("無法啟動相機：\n" + e.message + "\n請確保您允許了瀏覽器的相機權限。");
-                btn.innerText = "啟動失敗，請重試";
+                console.error("Camera Init Failed:", e);
+                // 如果失敗，顯示手動按鈕
+                errorMsg.style.display = 'block';
+                emoVal.innerText = "啟動失敗";
+                
+                if (e.name === 'NotAllowedError') {
+                    alert("請允許瀏覽器使用相機權限，否則無法進行情緒偵測。");
+                }
             }
         }
 
@@ -268,16 +273,15 @@
 
                     // 壓力邏輯
                     if(['sad', 'angry', 'fearful', 'disgusted'].includes(top)) {
-                        state.faceScore = Math.min(100, state.faceScore + 10); // 累積壓力
+                        state.faceScore = Math.min(100, state.faceScore + 10); 
                     } else if(top === 'happy') {
-                        state.faceScore = Math.max(0, state.faceScore - 10); // 快樂減壓
+                        state.faceScore = Math.max(0, state.faceScore - 10); 
                     } else {
-                        state.faceScore = Math.max(0, state.faceScore - 2); // 平靜緩慢減壓
+                        state.faceScore = Math.max(0, state.faceScore - 2); 
                     }
                 }
 
-                // 更新 UI
-                state.stress = state.faceScore; // 簡化：直接用臉部壓力當作總壓力
+                state.stress = state.faceScore; 
                 document.getElementById('stress-val').innerText = state.stress + "%";
                 const bar = document.getElementById('stress-bar');
                 bar.style.width = state.stress + "%";
@@ -286,7 +290,6 @@
                 else if(state.stress < 80) bar.style.background = "#FFAB19";
                 else bar.style.background = "#FF5555";
 
-                // 觸發暖心 AI
                 if(state.stress > 80) {
                     triggerEmpathyAI();
                 }
@@ -295,35 +298,30 @@
         }
 
         // ==========================================
-        // 3. 雙 AI 互動邏輯
+        // 3. 雙 AI 互動與截圖
         // ==========================================
         
         function triggerEmpathyAI() {
             state.isInterventionActive = true;
-            state.faceScore = 50; // 重置部分壓力
+            state.faceScore = 50; 
             document.getElementById('empathy-modal').style.display = 'flex';
         }
 
         function closeEmpathy() {
             document.getElementById('empathy-modal').style.display = 'none';
-            // 給予冷卻時間，避免馬上又跳出來
             setTimeout(() => { state.isInterventionActive = false; }, 5000);
         }
 
         async function captureAndAnalyze(aiType) {
-            // 根據 AI 類型設定 UI 狀態
             if (aiType === 'TA') {
                 const taBox = document.getElementById('ta-chat');
-                taBox.innerHTML += `<div class="msg user">📸 正在截圖分析中...</div>`;
+                taBox.innerHTML += `<div class="msg user">📸 正在截圖...</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } else if (aiType === 'EMPATHY') {
-                // 隱藏彈窗以免擋住截圖
                 document.getElementById('empathy-modal').style.display = 'none';
-                document.getElementById('empathy-msg').innerText = "🤖 暖心 AI 正在看您的程式，請稍候...";
             }
 
             try {
-                // 1. 執行螢幕截圖 (唯一合法的跨域截圖方式)
                 const stream = await navigator.mediaDevices.getDisplayMedia({
                     video: { cursor: "never" }, audio: false, preferCurrentTab: true
                 });
@@ -332,31 +330,29 @@
                 videoEl.srcObject = stream;
                 await new Promise(r => videoEl.onloadedmetadata = r);
                 videoEl.play();
-                await new Promise(r => setTimeout(r, 500)); // 等待畫面穩定
+                await new Promise(r => setTimeout(r, 500)); 
 
                 const canvas = document.getElementById('capture-canvas');
                 canvas.width = videoEl.videoWidth; canvas.height = videoEl.videoHeight;
                 canvas.getContext('2d').drawImage(videoEl, 0, 0);
 
-                stream.getTracks().forEach(t => t.stop()); // 停止分享
+                stream.getTracks().forEach(t => t.stop()); 
                 const base64 = canvas.toDataURL('image/jpeg', 0.7);
 
-                // 2. 如果是暖心 AI，截圖完要再把彈窗顯示回來
                 if (aiType === 'EMPATHY') {
                     document.getElementById('empathy-modal').style.display = 'flex';
+                    document.getElementById('empathy-msg').innerText = "🤖 AI 正在分析畫面，請稍候...";
                 }
 
-                // 3. 呼叫 Gemini
                 await callGemini(aiType, base64);
 
             } catch(e) {
                 console.error(e);
                 if (aiType === 'TA') {
                     const taBox = document.getElementById('ta-chat');
-                    taBox.innerHTML += `<div class="msg ai">⚠️ 截圖失敗：${e.message}<br>請記得選擇「分享」喔！</div>`;
+                    taBox.innerHTML += `<div class="msg ai">⚠️ 截圖失敗：請選擇「分享」畫面。</div>`;
                 } else {
                     document.getElementById('empathy-modal').style.display = 'flex';
-                    document.getElementById('empathy-msg').innerText = "⚠️ 哎呀，我看不到畫面。請記得選擇「目前的標籤頁」並分享喔！";
                 }
             }
         }
@@ -365,29 +361,9 @@
             const cleanBase64 = image64.split(',')[1];
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             
-            // 定義雙 AI 的人設 (Prompt)
-            let systemPrompt = "";
-            if (aiType === 'TA') {
-                systemPrompt = `
-                你是一位專業的 Scratch 程式設計助教 (TA)。
-                學生正在嘗試完成任務：【跳躍貓咪 (空白鍵 -> Y+100 -> 等待 -> Y-100)】。
-                請看截圖中的積木：
-                1. 檢查邏輯是否正確。
-                2. 如果有錯，請指出問題點並給予「提示」(例如：是不是少了一個橘色的等待積木？)。
-                3. 語氣專業但親切，重點在解決問題。
-                4. 繁體中文回答，100字以內。
-                `;
-            } else {
-                systemPrompt = `
-                你是一位極具同理心的「學習夥伴」 (Companion)。
-                系統偵測到學生壓力很大，可能快放棄了。
-                請看截圖：
-                1. **優先安撫情緒**：用溫暖的語氣告訴他「沒關係，我們慢慢來」。
-                2. **溫柔引導**：如果積木有錯，請用最簡單的方式引導他修正第一步就好，不要給壓力。
-                3. 語氣要像好朋友，多用表情符號 ❤️。
-                4. 繁體中文回答。
-                `;
-            }
+            let systemPrompt = aiType === 'TA' 
+                ? "你是一位Scratch助教。請看截圖檢查學生的程式積木是否有邏輯錯誤。任務：跳躍貓咪(空白鍵->Y+100->等待->Y-100)。請用繁體中文回答，100字內。"
+                : "你是一位暖心的學習夥伴。學生壓力很大。請看截圖：1.安撫他的情緒。2.溫柔地引導他修正程式。任務：跳躍貓咪。請用繁體中文，多用表情符號。";
 
             try {
                 const res = await fetch(url, {
