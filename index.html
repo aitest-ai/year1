@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Scratch 實驗室 (記憶修復版)</title>
+    <title>Scratch 實驗室 (穩定記憶版)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -214,6 +214,13 @@
 
     <script>
         const API_KEY = "AIzaSyBXZ7enyD8BdWbuE7lR8V_Akj1KFKucYl0"; // ★★★ 請務必填入您的 API Key ★★★
+        
+        // ★★★ 定義積木大師的系統提示詞 (作為常數，隨時合併到第一句話) ★★★
+        const TA_SYSTEM_PROMPT = `
+        你是 Scratch 積木大師。對象是小學高年級。
+        請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。
+        注意：如果使用者傳送了圖片，那是 Scratch 畫面的「放大裁切」截圖，請專注於檢查程式邏輯是否符合跳跳貓任務(空白鍵->Y+100->等待->Y-100)。
+        `;
 
         let state = {
             stress: 0, faceScore: 0, mouseScore: 0, keyScore: 0,
@@ -426,36 +433,27 @@
         }
 
         // ==========================================
-        // ★★★ 核心修改：整合對話與截圖 (記憶+連線+系統指令) ★★★
+        // ★★★ 核心修改：移除 System Instruction，合併到 User Message ★★★
         // ==========================================
 
         async function sendToGeminiTA() {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
 
-            // ★ 系統提示詞：改用 system_instruction 避免佔用對話 User 順序
-            const systemInstruction = {
-                parts: [{ text: `
-                    你是 Scratch 積木大師。對象是小學高年級。
-                    請用像朋友一樣的語氣回答，簡單易懂。不要直接給答案，試著引導他思考。
-                    注意：如果使用者傳送了圖片，那是 Scratch 畫面的「放大裁切」截圖，請專注於檢查程式邏輯是否符合跳跳貓任務(空白鍵->Y+100->等待->Y-100)。
-                `}]
-            };
-
-            // Payload: 分開 system_instruction 與 contents (對話記錄)
-            const payload = {
-                system_instruction: systemInstruction,
-                contents: state.taChatHistory
-            };
+            // 這裡不再使用 system_instruction 欄位，而是直接發送 contents 歷史紀錄
+            // 歷史紀錄在 captureAndAnalyze 或 sendTextChat 時已經把系統提示詞合併進去了
 
             try {
                 const res = await fetch(url, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ contents: state.taChatHistory })
                 });
                 const data = await res.json();
                 
-                if(data.error) throw new Error(data.error.message);
+                if(data.error) {
+                    console.error("API Error Detail:", data.error);
+                    throw new Error(data.error.message);
+                }
 
                 const reply = data.candidates[0].content.parts[0].text;
                 
@@ -470,9 +468,9 @@
                 });
 
             } catch(e) {
-                console.error("Gemini Error:", e);
+                console.error("Gemini Connection Error:", e);
                 taBox.innerHTML += `<div class="msg ai">連線發生錯誤，請稍後再試。</div>`;
-                // 失敗時，把剛剛的使用者訊息移除，避免卡住
+                // 失敗時，移除最後一則使用者訊息，避免卡住
                 state.taChatHistory.pop();
             }
         }
@@ -488,10 +486,17 @@
             taBox.scrollTop = taBox.scrollHeight;
             input.value = "";
 
-            // ★★★ 記憶：把使用者的文字存入歷史 ★★★
+            let messageText = val;
+            
+            // ★★★ 關鍵修正：如果是第一則訊息，把系統提示詞加在前面 ★★★
+            if (state.taChatHistory.length === 0) {
+                messageText = TA_SYSTEM_PROMPT + "\n\n學生問：" + val;
+            }
+
+            // 存入歷史
             state.taChatHistory.push({
                 role: 'user',
-                parts: [{ text: val }]
+                parts: [{ text: messageText }]
             });
 
             await sendToGeminiTA();
@@ -504,7 +509,7 @@
                 taBox.innerHTML += `<div class="msg user">📸 傳送截圖中...</div>`;
             }
 
-            let stream = null; // 定義在外部以便 finally 清理
+            let stream = null; 
 
             try {
                 stream = await navigator.mediaDevices.getDisplayMedia({
@@ -517,7 +522,6 @@
                 await new Promise(r => videoEl.onloadedmetadata = r);
                 videoEl.play();
                 
-                // 等待畫面穩定
                 await new Promise(r => setTimeout(r, 500)); 
 
                 // --- 裁切邏輯 ---
@@ -542,6 +546,11 @@
                     userPrompt = `(暖心模式啟動：學生剛剛因為 ${reason} 感到挫折) 請溫柔地幫我看看這張截圖裡的程式積木哪裡有問題？`;
                 }
 
+                // ★★★ 關鍵修正：如果是第一則訊息，把系統提示詞加在前面 ★★★
+                if (state.taChatHistory.length === 0) {
+                    userPrompt = TA_SYSTEM_PROMPT + "\n\n" + userPrompt;
+                }
+
                 // ★★★ 記憶：把「圖片 + 文字」存入歷史 ★★★
                 state.taChatHistory.push({
                     role: 'user',
@@ -558,12 +567,12 @@
                 console.error(e);
                 if(mode.includes('TA')) taBox.innerHTML += `<div class="msg ai">⚠️ 截圖失敗，請記得按「分享」喔。</div>`;
             } finally {
-                // ★★★ 修正連線失敗：強制清理 Video 資源 ★★★
+                // 清理 Video 資源
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
                 const videoEl = document.getElementById('capture-video');
-                videoEl.srcObject = null; // 斷開連結
+                videoEl.srcObject = null;
             }
         }
     </script>
