@@ -529,7 +529,7 @@
                         contents: [{
                             parts: [
                                 { text: systemPrompt },
-                                // ★★★ 修正部分：inlineData 改為 inline_data，mimeType 改為 mime_type ★★★
+                                // ★★★ 修正這裡：改成蛇形命名 inline_data 和 mime_type ★★★
                                 { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
                             ]
                         }]
@@ -540,7 +540,6 @@
                 taBox.innerHTML += `<div class="msg ai">${marked.parse(reply)}</div>`;
                 taBox.scrollTop = taBox.scrollHeight;
             } catch(e) {
-                console.error(e);
                 taBox.innerHTML += `<div class="msg ai">連線失敗。</div>`;
             }
         }
