@@ -410,7 +410,7 @@
 
         // --- Gemini API (文字版) ---
         async function callGeminiText(userText) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
             
             const prompt = `你是一位專業的 Scratch 程式助教。學生問：${userText}。請用繁體中文簡短回答，引導學生思考，不要直接給完整程式碼。`;
@@ -433,7 +433,7 @@
         // --- Gemini API (視覺版) ---
         async function callGeminiVision(mode, image64) {
             const cleanBase64 = image64.split(',')[1];
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
             const taBox = document.getElementById('ta-chat');
 
             let systemPrompt = "";
